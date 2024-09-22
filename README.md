@@ -1,6 +1,6 @@
 # mercadopagosplitwoocomece
 === Mercado Pago Split Payment for WCFM ===
-Contributors: Seu Nome
+Contributors: Eli Silva
 Tags: woocommerce, mercado pago, split payment, wcfm
 Requires at least: 5.0
 Tested up to: 6.0
