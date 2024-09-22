@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Mercado Pago Split Payment for WCFM
- * Plugin URI: https://seumarketplace.com
+ * Plugin URI: https://brasilnarede.online
  * Description: Plugin de integração de split de pagamento do Mercado Pago com WCFM Multivendor.
  * Version: 1.0.0
  * Author: Eli Silva
