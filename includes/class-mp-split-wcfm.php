@@ -32,15 +32,15 @@ class MP_Split_WCFM {
         // Obter a taxa de aplicação configurada
         $application_fee = MP_Split_Helper::get_application_fee();
 
-        // Obter o token do Mercado Pago ou outras informações necessárias
-        $payer_email = $order->get_billing_email();
-        $card_token = get_post_meta( $order_id, '_mp_card_token', true );
+        // Obter a chave PIX do vendedor
+        $vendor_id = $order->get_meta('_vendor_id'); // Assumindo que você tem um método para obter o ID do vendedor
+        $pix_key = MP_Split_Helper::get_vendor_pix_key($vendor_id);
 
         // Inicializar a biblioteca do Mercado Pago
         $mp = new MercadoPagoLib();
 
         // Criar o pagamento com o split de taxa
-        $response = $mp->create_payment( $payer_email, $card_token, $transaction_amount, 1, $application_fee );
+        $response = $mp->split_payment($transaction_amount, $application_fee, $pix_key);
 
         // Verificar o status do pagamento e salvar informações no pedido
         if ( isset( $response['status'] ) && $response['status'] == 'approved' ) {
