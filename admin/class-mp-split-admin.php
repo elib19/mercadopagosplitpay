@@ -23,6 +23,7 @@ class MP_Split_Admin {
     public function mp_register_settings() {
         register_setting( 'mp-split-settings-group', 'mp_access_token' );
         register_setting( 'mp-split-settings-group', 'mp_application_fee' );
+        register_setting( 'mp-split-settings-group', 'mp_pix_key' ); // Nova configuração para chave PIX
     }
 
     // Renderizar página de configurações
