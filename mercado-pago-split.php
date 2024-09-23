@@ -27,4 +27,10 @@ function mp_split_init() {
     new MP_Split_Admin();
 }
 add_action('plugins_loaded', 'mp_split_init');
+function mp_split_init() {
+    new MP_Split_Admin();
+    new MP_Split_WCFM(); // Inicializa a classe de integração com WCFM
+}
+add_action('plugins_loaded', 'mp_split_init');
+
 
