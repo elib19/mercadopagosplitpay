@@ -21,6 +21,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-mp-split-wcfm.php';
 require_once plugin_dir_path(__FILE__) . 'lib/mercadopago.php'; // Inclusão da classe de integração com a API do Mercado Pago
 require_once plugin_dir_path(__FILE__) . 'assets/css/admin-style.css'; // Inclusão do CSS do admin (se aplicável)
 require_once plugin_dir_path(__FILE__) . 'assets/js/admin-script.js'; // Inclusão do JS do admin (se aplicável)
+require_once plugin_dir_path(__FILE__) . 'includes/helper.php';
 
 // Inicializa a classe de administração
 function mp_split_init() {
