@@ -27,9 +27,3 @@ class MP_Split_WCFM {
         update_post_meta($product_id, '_mp_split_enabled', $split_enabled);
     }
 }
-private function log_error($message) {
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('[MP Split WCFM Error] ' . $message);
-    }
-}
-
