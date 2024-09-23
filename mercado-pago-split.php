@@ -15,12 +15,12 @@ require_once plugin_dir_path(__FILE__) . 'install.php';
 require_once plugin_dir_path(__FILE__) . 'uninstall.php';
 require_once plugin_dir_path(__FILE__) . 'admin/class-mp-split-admin.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-mp-split-wcfm.php';
-require_once plugin_dir_path(__FILE__) . 'includes/helper.php'; // Certifique-se de incluir helper.php
-require_once plugin_dir_path(__FILE__) . 'lib/mercadopago.php'; // Classe de integração
+require_once plugin_dir_path(__FILE__) . 'includes/helper.php';
+require_once plugin_dir_path(__FILE__) . 'lib/mercadopago.php';
 
-// Inicializa a classe de administração
+// Inicializa as classes
 function mp_split_init() {
     new MP_Split_Admin();
-    new MP_Split_WCFM(); // Inicializa a classe de integração com WCFM
+    new MP_Split_WCFM();
 }
 add_action('plugins_loaded', 'mp_split_init');
