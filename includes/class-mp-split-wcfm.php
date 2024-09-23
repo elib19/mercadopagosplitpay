@@ -1,59 +1,36 @@
 <?php
+/**
+ * Classe de integração com WCFM
+ */
+class MP_Split_WCFM {
 
-if (!defined('ABSPATH')) {
-    exit; // Evitar acesso direto
-}
-
-class MP_Split_WCFM
-{
-    public function __construct()
-    {
-        if (is_admin()) {
-            $this->load_admin_classes();
-        }
-
-        // Inicializar funções de split de pagamento
-        add_action('woocommerce_payment_complete', array($this, 'process_split_payment'));
-        add_action('woocommerce_order_status_completed', array($this, 'schedule_payment_transfer'));
+    public function __construct() {
+        // Adiciona ganchos para integrar com o WCFM
+        add_action('wcfm_product_manage_meta_end', array($this, 'add_split_payment_option'));
+        add_action('wcfm_product_manage_meta_save', array($this, 'save_split_payment_option'), 10, 2);
     }
 
-    private function load_admin_classes()
-    {
-        require_once plugin_dir_path(__FILE__) . '../admin/class-mp-split-admin.php';
+    /**
+     * Adiciona a opção de split de pagamento na página de gerenciamento de produtos do WCFM.
+     */
+    public function add_split_payment_option($product_id) {
+        $split_enabled = get_post_meta($product_id, '_mp_split_enabled', true);
+        ?>
+        <div class="wcfm-content">
+            <h2><?php _e('Split Payment Options', 'mp-split'); ?></h2>
+            <label for="mp_split_enabled">
+                <input type="checkbox" id="mp_split_enabled" name="mp_split_enabled" value="yes" <?php checked($split_enabled, 'yes'); ?> />
+                <?php _e('Habilitar Split de Pagamento', 'mp-split'); ?>
+            </label>
+        </div>
+        <?php
     }
 
-    public function process_split_payment($order_id)
-    {
-        $order = wc_get_order($order_id);
-
-        $transaction_amount = $order->get_total();
-        $application_fee = MP_Split_Helper::get_application_fee();
-        $payer_email = $order->get_billing_email();
-        $card_token = get_post_meta($order_id, '_mp_card_token', true);
-        
-        $mp = new MercadoPagoLib();
-
-        $response = $mp->create_payment($payer_email, $card_token, $transaction_amount, 1, $application_fee);
-
-        if (isset($response['status']) && $response['status'] == 'approved') {
-            $order->add_order_note(__('Pagamento aprovado via Mercado Pago Split.', 'mp-split'));
-        } else {
-            $order->add_order_note(__('Erro ao processar pagamento via Mercado Pago.', 'mp-split'));
-        }
-    }
-
-    public function schedule_payment_transfer($order_id)
-    {
-        // Lógica para agendar a transferência do pagamento com intervalo de 7, 15 ou 30 dias
-        $order = wc_get_order($order_id);
-        $vendor_id = get_post_meta($order_id, '_vendor_id', true);
-        $payment_interval = get_post_meta($vendor_id, '_mp_payment_interval', true);
-        
-        // Exemplo de lógica para definir o intervalo de pagamento e agendar transferência
-        if ($payment_interval) {
-            wp_schedule_single_event(time() + $payment_interval * DAY_IN_SECONDS, 'mp_split_transfer_payment', array($order_id));
-        }
+    /**
+     * Salva a opção de split de pagamento ao salvar o produto.
+     */
+    public function save_split_payment_option($product_id, $post_data) {
+        $split_enabled = isset($post_data['mp_split_enabled']) ? 'yes' : 'no';
+        update_post_meta($product_id, '_mp_split_enabled', $split_enabled);
     }
 }
-
-new MP_Split_WCFM();
