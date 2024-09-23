@@ -1,15 +1,15 @@
 <?php
+/**
+ * Script de desinstalação do Mercado Pago Split Payment
+ */
 
-// Se o plugin foi acessado diretamente, interromper execução
-if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
-    die;
+if (!defined('WP_UNINSTALL_PLUGIN')) {
+    exit;
 }
 
-function mp_split_plugin_uninstall() {
-    // Remover as opções armazenadas no banco de dados
-    delete_option( 'mp_access_token' );
-    delete_option( 'mp_application_fee' );
+function mp_split_uninstall() {
+    // Remove configurações do plugin
+    delete_option('mp_split_settings');
 }
 
-// Executar a função de desinstalação
-mp_split_plugin_uninstall();
+mp_split_uninstall();
