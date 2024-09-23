@@ -1,42 +1,45 @@
 <?php
+/**
+ * Helper Functions for Mercado Pago Split Payment
+ */
 
-if (!defined('ABSPATH')) {
-    exit; // Evitar acesso direto
+/**
+ * Função para validar se um valor é numérico e maior que zero.
+ *
+ * @param mixed $value O valor a ser validado.
+ * @return bool Verdadeiro se o valor for numérico e maior que zero, falso caso contrário.
+ */
+function mp_split_is_valid_amount($value) {
+    return is_numeric($value) && $value > 0;
 }
 
-class MP_Split_Helper
-{
-    public static function get_mp_access_token()
-    {
-        return get_option('mp_access_token', '');
-    }
+/**
+ * Função para formatar um valor monetário em formato padrão.
+ *
+ * @param float $amount O valor a ser formatado.
+ * @return string O valor formatado como moeda.
+ */
+function mp_split_format_currency($amount) {
+    return number_format($amount, 2, ',', '.');
+}
 
-    public static function get_application_fee()
-    {
-        return (int)get_option('mp_application_fee', 10); // 10% por padrão
-    }
+/**
+ * Função para verificar se as configurações do Mercado Pago estão completas.
+ *
+ * @return bool Verdadeiro se todas as configurações estiverem preenchidas, falso caso contrário.
+ */
+function mp_split_are_settings_complete() {
+    $options = get_option('mp_split_settings');
+    return !empty($options['mp_split_app_id']) && !empty($options['mp_split_client_secret']) && !empty($options['mp_split_redirect_uri']);
+}
 
-    public static function call_mp_api($url, $method = 'GET', $data = array())
-    {
-        $access_token = self::get_mp_access_token();
-        $headers = array(
-            "Authorization: Bearer $access_token",
-            "Content-Type: application/json",
-            "Accept: application/json"
-        );
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-        if (!empty($data)) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        }
-
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        return json_decode($response, true);
+/**
+ * Função para enviar um erro para o log do WordPress.
+ *
+ * @param string $message Mensagem de erro a ser registrada.
+ */
+function mp_split_log_error($message) {
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('[MP Split Error] ' . $message);
     }
 }
