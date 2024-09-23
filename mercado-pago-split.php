@@ -3,7 +3,7 @@
  * Plugin Name: Mercado Pago Split Payment
  * Description: Integração do Mercado Pago com suporte a split de pagamentos para WooCommerce.
  * Version: 1.0
- * Author: Seu Nome
+ * Author: Eli Silva
  */
 
 if (!defined('ABSPATH')) {
