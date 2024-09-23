@@ -1,21 +1,19 @@
 <?php
+/**
+ * Script de instalação do Mercado Pago Split Payment
+ */
 
-if (!defined('WP_UNINSTALL_PLUGIN')) {
-    die;
-}
-
-function mp_split_plugin_install()
-{
-    $default_settings = array(
-        'mp_access_token'     => '',
-        'mp_application_fee'  => 10,  // Taxa de comissão padrão
+function mp_split_install() {
+    // Define opções padrão
+    $default_options = array(
+        'mp_split_app_id' => '',
+        'mp_split_client_secret' => '',
+        'mp_split_redirect_uri' => ''
     );
 
-    foreach ($default_settings as $key => $value) {
-        if (get_option($key) === false) {
-            update_option($key, $value);
-        }
+    if (!get_option('mp_split_settings')) {
+        add_option('mp_split_settings', $default_options);
     }
 }
 
-register_activation_hook(__FILE__, 'mp_split_plugin_install');
+register_activation_hook(__FILE__, 'mp_split_install');
