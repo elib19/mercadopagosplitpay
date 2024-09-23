@@ -27,3 +27,4 @@ class MP_Split_WCFM {
         update_post_meta($product_id, '_mp_split_enabled', $split_enabled);
     }
 }
+
