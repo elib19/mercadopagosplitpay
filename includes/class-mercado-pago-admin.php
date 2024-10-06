@@ -23,13 +23,13 @@ class Mercado_Pago_Admin {
      */
     public static function add_admin_menu() {
         add_menu_page(
-            'Configurações Mercado Pago', // Título da página
-            'Configurações Mercado Pago', // Nome do menu
-            'manage_options', // Capacidade
-            'mercado_pago_settings', // Slug
-            array(__CLASS__, 'settings_page'), // Função que renderiza a página
-            'dashicons-money', // Ícone do menu
-            100 // Posição
+            'Configurações Mercado Pago',
+            'Configurações Mercado Pago',
+            'manage_options',
+            'mercado_pago_settings',
+            array(__CLASS__, 'settings_page'),
+            'dashicons-money',
+            100
         );
     }
 
@@ -55,46 +55,40 @@ class Mercado_Pago_Admin {
      * Registra as configurações do plugin
      */
     public static function register_settings() {
-        // Registra a configuração
         register_setting('mercado_pago_options_group', 'mercado_pago_settings');
 
-        // Adiciona uma seção
         add_settings_section(
-            'mercado_pago_section', // ID da seção
-            'Configurações do Mercado Pago', // Título
-            array(__CLASS__, 'settings_section_callback'), // Callback
-            'mercado_pago_settings' // Página
-        );
-
-        // Adiciona campos
-        add_settings_field(
-            'access_token', // ID
-            'Access Token', // Título
-            array(__CLASS__, 'render_access_token_field'), // Callback
-            'mercado_pago_settings', // Página
-            'mercado_pago_section' // Seção
+            'mercado_pago_section',
+            'Configurações do Mercado Pago',
+            array(__CLASS__, 'settings_section_callback'),
+            'mercado_pago_settings'
         );
 
         add_settings_field(
-            'public_key', // ID
-            'Public Key', // Título
-            array(__CLASS__, 'render_public_key_field'), // Callback
-            'mercado_pago_settings', // Página
-            'mercado_pago_section' // Seção
+            'access_token',
+            'Access Token',
+            array(__CLASS__, 'render_access_token_field'),
+            'mercado_pago_settings',
+            'mercado_pago_section'
         );
-        
+
         add_settings_field(
-            'sandbox', // ID
-            'Modo Sandbox', // Título
-            array(__CLASS__, 'render_sandbox_field'), // Callback
-            'mercado_pago_settings', // Página
-            'mercado_pago_section' // Seção
+            'public_key',
+            'Public Key',
+            array(__CLASS__, 'render_public_key_field'),
+            'mercado_pago_settings',
+            'mercado_pago_section'
+        );
+
+        add_settings_field(
+            'sandbox',
+            'Modo Sandbox',
+            array(__CLASS__, 'render_sandbox_field'),
+            'mercado_pago_settings',
+            'mercado_pago_section'
         );
     }
 
-    /**
-     * Renderiza o campo Access Token
-     */
     public static function render_access_token_field() {
         $options = get_option('mercado_pago_settings');
         ?>
@@ -102,19 +96,13 @@ class Mercado_Pago_Admin {
         <?php
     }
 
-    /**
-     * Renderiza o campo Public Key
-     */
     public static function render_public_key_field() {
         $options = get_option('mercado_pago_settings');
         ?>
         <input type="text" name="mercado_pago_settings[public_key]" value="<?php echo esc_attr($options['public_key'] ?? ''); ?>" />
         <?php
     }
-    
-    /**
-     * Renderiza o campo Modo Sandbox
-     */
+
     public static function render_sandbox_field() {
         $options = get_option('mercado_pago_settings');
         ?>
@@ -122,18 +110,13 @@ class Mercado_Pago_Admin {
         <?php
     }
 
-    /**
-     * Callback da seção de configurações
-     */
     public static function settings_section_callback() {
         echo 'Configure as opções abaixo para integrar o Mercado Pago.';
     }
 
-    /**
-     * Enqueue scripts e estilos
-     */
     public static function enqueue_admin_scripts() {
-        // Adicione seus scripts e estilos aqui
+        wp_enqueue_style('mp-split-style', plugin_dir_url(__FILE__) . '../assets/css/mp-split-style.css');
+        wp_enqueue_script('mp-split-scripts', plugin_dir_url(__FILE__) . '../assets/js/mp-split-scripts.js', array('jquery'), null, true);
     }
 }
 
