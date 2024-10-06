@@ -9,29 +9,24 @@
  * License: GPL2
  */
 
-// Evita o acesso direto ao arquivo
-if (!defined('ABSPATH')) {
-    exit;
-}
+// Evita acesso direto ao arquivo
+defined('ABSPATH') || exit;
 
-// Inclui arquivos necessários
-require_once plugin_dir_path(__FILE__) . 'install.php';
-require_once plugin_dir_path(__FILE__) . 'uninstall.php';
-require_once plugin_dir_path(__FILE__) . 'includes/admin.php';
-require_once plugin_dir_path(__FILE__) . 'includes/ajax-handler.php';
-require_once plugin_dir_path(__FILE__) . 'includes/helper.php';
-require_once plugin_dir_path(__FILE__) . 'includes/gateway.php'; // Inclui o gateway de pagamento
+// Inclui os arquivos necessários
+require_once plugin_dir_path(__FILE__) . 'includes/gateway.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-admin.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-settings.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-vendor.php';
 
 // Inicializa o plugin
-add_action('plugins_loaded', 'mercado_pago_split_init');
+add_action('plugins_loaded', function() {
+    // Carrega o gateway de pagamento
+    add_filter('woocommerce_payment_gateways', function($gateways) {
+        $gateways[] = 'WC_Mercado_Pago_Gateway';
+        return $gateways;
+    });
+});
 
-function mercado_pago_split_init() {
-    // Verifica se a classe de pagamento do WooCommerce existe
-    if (class_exists('WC_Payment_Gateway')) {
-        add_filter('woocommerce_payment_gateways', 'add_mercado_pago_gateway');
-        function add_mercado_pago_gateway($gateways) {
-            $gateways[] = 'WC_Mercado_Pago_Gateway'; // Adiciona o gateway de pagamento
-            return $gateways;
-        }
-    }
-}
+// Inicializa a administração do plugin
+Mercado_Pago_Admin::init();
+Mercado_Pago_Vendor::init();
