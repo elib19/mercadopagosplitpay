@@ -1,8 +1,13 @@
-/* Estilos personalizados para a página de configuração do plugin */
-#mp-split-settings {
+/* Estilos para a página de configurações */
+#mp-split-vendor-settings {
     padding: 20px;
 }
 
-.mp-split-label {
-    font-weight: bold;
+#mp-split-vendor-settings h2 {
+    font-size: 24px;
+}
+
+#mp-split-vendor-settings input {
+    width: 100%;
+    padding: 8px;
 }
