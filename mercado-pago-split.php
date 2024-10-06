@@ -1,61 +1,41 @@
 <?php
-/*
-Plugin Name: Mercado Pago Split WooCommerce
-Description: Plugin de split de pagamento Mercado Pago integrado ao WCFM Marketplace e WooCommerce.
-Version: 1.0.0
-Author: Eli Silva
-*/
+/**
+ * Plugin Name: Mercado Pago Split para WooCommerce
+ * Description: Integra o Mercado Pago com WooCommerce e WCFM com suporte para split de pagamento.
+ * Version: 1.0
+ * Author: Seu Nome
+ */
 
-// Evitar acesso direto ao arquivo
 if ( ! defined( 'ABSPATH' ) ) {
-    exit; // Proteção básica
+    exit; // Impede acesso direto
 }
 
-// Definir o caminho base do plugin
-define( 'MP_SPLIT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+// Definindo constantes
+define( 'MERCADO_PAGO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'MERCADO_PAGO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-// Carregar classes principais
-require_once MP_SPLIT_PLUGIN_DIR . 'includes/class-mp-split-api.php';
-require_once MP_SPLIT_PLUGIN_DIR . 'includes/class-mp-split-helper.php';
-require_once MP_SPLIT_PLUGIN_DIR . 'includes/mp-split-settings.php';
-include_once MP_SPLIT_PLUGIN_DIR . 'vendor-mercadopago-settings.php';
-include_once MP_SPLIT_PLUGIN_DIR . 'mp-split-settings.php';
+// Incluindo arquivos
+require_once MERCADO_PAGO_PLUGIN_DIR . 'includes/class-mercado-pago-admin.php';
+require_once MERCADO_PAGO_PLUGIN_DIR . 'includes/class-mercado-pago-vendor.php';
+require_once MERCADO_PAGO_PLUGIN_DIR . 'includes/class-mercado-pago-reports.php';
+require_once MERCADO_PAGO_PLUGIN_DIR . 'includes/class-mercado-pago-helper.php';
+require_once MERCADO_PAGO_PLUGIN_DIR . 'includes/class-mercado-pago-settings.php';
 
-// Hooks de instalação e desinstalação
-register_activation_hook( __FILE__, 'mp_split_install' );
-register_deactivation_hook( __FILE__, 'mp_split_uninstall' );
-
-// Adiciona o gateway de pagamento do Mercado Pago ao WooCommerce
-add_action( 'woocommerce_payment_gateways', 'add_mp_split_gateway' );
-
-function add_mp_split_gateway( $methods ) {
-    $methods[] = 'WC_Gateway_Mercado_Pago_Split'; // Adicione o seu gateway
-    return $methods;
+// Função de ativação
+function mercado_pago_activate() {
+    require_once MERCADO_PAGO_PLUGIN_DIR . 'install.php';
 }
+register_activation_hook( __FILE__, 'mercado_pago_activate' );
 
-// Função de instalação
-function mp_split_install() {
-    require_once MP_SPLIT_PLUGIN_DIR . 'includes/install.php';
-    mp_split_create_tables(); // Cria tabelas no banco de dados
+// Função de desativação
+function mercado_pago_deactivate() {
+    require_once MERCADO_PAGO_PLUGIN_DIR . 'uninstall.php';
 }
+register_deactivation_hook( __FILE__, 'mercado_pago_deactivate' );
 
-// Função de desinstalação
-function mp_split_uninstall() {
-    require_once MP_SPLIT_PLUGIN_DIR . 'includes/uninstall.php';
-    mp_split_remove_data(); // Remove dados e tabelas
-
-    // Registra as opções do plugin
-function mp_split_register_settings() {
-    register_setting( 'mp_split_settings_group', 'mp_access_token' );
-    register_setting( 'mp_split_settings_group', 'mp_sponsor_id' );
+// Inicializando o plugin
+add_action( 'plugins_loaded', 'mercado_pago_init' );
+function mercado_pago_init() {
+    Mercado_Pago_Admin::init();
+    Mercado_Pago_Vendor::init();
 }
-add_action( 'admin_init', 'mp_split_register_settings' );
-
-}
-
-// Iniciar o plugin
-function mp_split_init() {
-    // Adicionar hooks para adicionar configurações no painel do vendedor
-    add_action( 'wcfm_vendors_settings', 'mp_split_add_vendor_settings' );
-}
-add_action( 'plugins_loaded', 'mp_split_init' );
