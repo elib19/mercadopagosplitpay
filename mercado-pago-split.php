@@ -25,6 +25,14 @@ include_once MP_SPLIT_PLUGIN_DIR . 'mp-split-settings.php';
 register_activation_hook( __FILE__, 'mp_split_install' );
 register_deactivation_hook( __FILE__, 'mp_split_uninstall' );
 
+// Adiciona o gateway de pagamento do Mercado Pago ao WooCommerce
+add_action( 'woocommerce_payment_gateways', 'add_mp_split_gateway' );
+
+function add_mp_split_gateway( $methods ) {
+    $methods[] = 'WC_Gateway_Mercado_Pago_Split'; // Adicione o seu gateway
+    return $methods;
+}
+
 // Função de instalação
 function mp_split_install() {
     require_once MP_SPLIT_PLUGIN_DIR . 'includes/install.php';
