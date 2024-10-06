@@ -9,42 +9,29 @@
  * License: GPL2
  */
 
-defined('ABSPATH') || exit;
+// Evita o acesso direto ao arquivo
+if (!defined('ABSPATH')) {
+    exit;
+}
 
-if (!class_exists('Mercado_Pago_Split_Plugin')) {
-    class Mercado_Pago_Split_Plugin {
-        public function __construct() {
-            // Inclui arquivos
-            $this->include_files();
+// Inclui arquivos necessários
+require_once plugin_dir_path(__FILE__) . 'install.php';
+require_once plugin_dir_path(__FILE__) . 'uninstall.php';
+require_once plugin_dir_path(__FILE__) . 'includes/admin.php';
+require_once plugin_dir_path(__FILE__) . 'includes/ajax-handler.php';
+require_once plugin_dir_path(__FILE__) . 'includes/helper.php';
+require_once plugin_dir_path(__FILE__) . 'includes/gateway.php'; // Inclui o gateway de pagamento
 
-            // Inicializa classes
-            Mercado_Pago_Settings::init();
-            Mercado_Pago_Vendor::init();
-            Mercado_Pago_Admin::init();
+// Inicializa o plugin
+add_action('plugins_loaded', 'mercado_pago_split_init');
 
-            // Hooks de ativação e desativação
-            register_activation_hook(__FILE__, array($this, 'activate'));
-            register_deactivation_hook(__FILE__, array($this, 'deactivate'));
-        }
-
-        private function include_files() {
-            include_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-settings.php';
-            include_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-vendor.php';
-            include_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-admin.php';
-            include_once plugin_dir_path(__FILE__) . 'includes/helper-functions.php';
-            include_once plugin_dir_path(__FILE__) . 'includes/ajax-handler.php';
-        }
-
-        public function activate() {
-            // Ação de ativação do plugin
-            include_once plugin_dir_path(__FILE__) . 'install.php';
-        }
-
-        public function deactivate() {
-            // Ação de desativação do plugin
-            include_once plugin_dir_path(__FILE__) . 'uninstall.php';
+function mercado_pago_split_init() {
+    // Verifica se a classe de pagamento do WooCommerce existe
+    if (class_exists('WC_Payment_Gateway')) {
+        add_filter('woocommerce_payment_gateways', 'add_mercado_pago_gateway');
+        function add_mercado_pago_gateway($gateways) {
+            $gateways[] = 'WC_Mercado_Pago_Gateway'; // Adiciona o gateway de pagamento
+            return $gateways;
         }
     }
-
-    new Mercado_Pago_Split_Plugin();
 }
