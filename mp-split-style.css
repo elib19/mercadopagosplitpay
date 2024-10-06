@@ -1,0 +1,8 @@
+/* Estilos personalizados para a página de configuração do plugin */
+#mp-split-settings {
+    padding: 20px;
+}
+
+.mp-split-label {
+    font-weight: bold;
+}
