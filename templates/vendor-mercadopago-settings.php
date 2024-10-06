@@ -8,8 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Função para exibir as configurações do Mercado Pago no painel do vendedor
 function mp_split_render_vendor_settings( $vendor_id ) {
     // Obter as credenciais do vendedor
-    $access_token = get_user_meta( $vendor_id, 'mp_access_token', true );
-    $sponsor_id = get_user_meta( $vendor_id, 'mp_sponsor_id', true );
+    $access_token = get_user_meta( $vendor_id, 'mp_access_token', true ); // Obtenha do meta do usuário
+    $sponsor_id = get_user_meta( $vendor_id, 'mp_sponsor_id', true ); // Obtenha do meta do usuário
 
     // Renderizar o formulário de configurações
     ?>
@@ -47,7 +47,9 @@ add_action( 'wcfm_vendors_settings_update', function( $vendor_id ) {
         return; // Verificação de segurança
     }
 
-    MP_Split_Helper::save_vendor_settings( $vendor_id, $_POST );
+    // Salvar as configurações
+    update_user_meta( $vendor_id, 'mp_access_token', sanitize_text_field( $_POST['mp_access_token'] ) );
+    update_user_meta( $vendor_id, 'mp_sponsor_id', sanitize_text_field( $_POST['mp_sponsor_id'] ) );
 } );
 
 // Hook para adicionar as configurações no painel do vendedor
