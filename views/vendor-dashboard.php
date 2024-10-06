@@ -1,46 +1,40 @@
-<div class="wrap">
-    <h2><?php _e('Dashboard do Vendedor', 'woocommerce'); ?></h2>
-    
-    <form id="payment-form">
-        <label for="amount"><?php _e('Valor', 'woocommerce'); ?></label>
-        <input type="text" name="amount" id="amount" required>
+<h2>Dashboard do Vendedor</h2>
 
-        <label for="description"><?php _e('Descrição', 'woocommerce'); ?></label>
-        <input type="text" name="description" id="description" required>
+<table>
+    <tr>
+        <th>Data da Venda</th>
+        <th>Preço do Produto</th>
+        <th>Taxa do Marketplace</th>
+        <th>Lucro Total</th>
+    </tr>
+    <?php
+    // Obtenha o ID do vendedor logado
+    $user_id = get_current_user_id();
 
-        <label for="email"><?php _e('Email do Cliente', 'woocommerce'); ?></label>
-        <input type="email" name="email" id="email" required>
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'mercado_pago_sales'; // Nome da tabela com as vendas
 
-        <button type="submit"><?php _e('Processar Pagamento', 'woocommerce'); ?></button>
-    </form>
+    // Busque as vendas do vendedor
+    $sales = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE seller_id = %d",
+        $user_id
+    ));
 
-    <div id="payment-response"></div>
-</div>
+    if ($sales) {
+        foreach ($sales as $sale) {
+            // Calcule a taxa do marketplace e o lucro total
+            $marketplace_fee = $sale->price * 0.10; // 10% de taxa
+            $total_profit = $sale->price - $marketplace_fee;
 
-<script>
-    document.getElementById('payment-form').onsubmit = function(event) {
-        event.preventDefault();
-
-        let formData = new FormData(this);
-        let paymentData = {
-            amount: formData.get('amount'),
-            description: formData.get('description'),
-            email: formData.get('email')
-        };
-
-        fetch('<?php echo admin_url('admin-ajax.php'); ?>?action=wcfm_vendors_ajax_process_payment', {
-            method: 'POST',
-            body: JSON.stringify({ payment_data: paymentData }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('payment-response').innerText = JSON.stringify(data);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-    };
-</script>
+            echo '<tr>';
+            echo '<td>' . date('d/m/Y H:i:s', strtotime($sale->sale_date)) . '</td>'; // Formata a data da venda
+            echo '<td>R$ ' . number_format($sale->price, 2, ',', '.') . '</td>'; // Preço do produto
+            echo '<td>R$ ' . number_format($marketplace_fee, 2, ',', '.') . '</td>'; // Taxa do marketplace
+            echo '<td>R$ ' . number_format($total_profit, 2, ',', '.') . '</td>'; // Lucro total
+            echo '</tr>';
+        }
+    } else {
+        echo '<tr><td colspan="4">Nenhuma venda encontrada.</td></tr>';
+    }
+    ?>
+</table>
