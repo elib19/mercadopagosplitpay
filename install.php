@@ -4,41 +4,36 @@
 defined('ABSPATH') || exit;
 
 /**
- * Função para instalar o plugin
+ * Instalação do plugin Mercado Pago
  */
 function mercado_pago_install() {
     global $wpdb;
 
-    // Define o nome da tabela
-    $table_name = $wpdb->prefix . 'mercado_pago_transactions';
+    // Criação de uma tabela personalizada, se necessário
+    $table_name = $wpdb->prefix . 'mercado_pago_custom_table'; // Defina o nome da tabela
 
-    // Verifica se a tabela já existe
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
-        // SQL para criar a tabela
-        $charset_collate = $wpdb->get_charset_collate();
-        $sql = "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            transaction_id varchar(255) NOT NULL,
-            vendor_id mediumint(9) NOT NULL,
-            amount float NOT NULL,
-            description text NOT NULL,
-            status varchar(50) NOT NULL,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY (id)
-        ) $charset_collate;";
+    $charset_collate = $wpdb->get_charset_collate();
 
-        // Executa a criação da tabela
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
+    $sql = "CREATE TABLE $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        vendor_id bigint(20) NOT NULL,
+        payment_data text NOT NULL,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+
+    // Definindo opções padrão
+    if (!get_option('mercado_pago_settings')) {
+        add_option('mercado_pago_settings', array(
+            'access_token' => '',
+            'public_key' => '',
+            'sandbox' => '0',
+        ));
     }
-
-    // Adiciona opções padrão
-    add_option('mercado_pago_settings', array(
-        'access_token' => '',
-        'public_key' => '',
-        'sandbox' => true,
-    ));
 }
 
-// Aciona a função de instalação ao ativar o plugin
+// Hook para ativação do plugin
 register_activation_hook(__FILE__, 'mercado_pago_install');
