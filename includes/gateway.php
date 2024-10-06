@@ -49,20 +49,31 @@ class WC_Mercado_Pago_Gateway extends WC_Payment_Gateway {
 
         // Lógica para processar o pagamento usando o Mercado Pago
         $payment_data = array(
-            // Dados necessários para o pagamento, incluindo split
+            'amount' => $order->get_total(),
+            'description' => 'Pagamento do pedido #' . $order_id,
+            'email' => $order->get_billing_email(),
         );
 
         // Envie os dados de pagamento para o Mercado Pago
+        $response = Mercado_Pago_Vendor::make_payment($payment_data, get_current_user_id());
 
-        // Retorne o status do pagamento
-        return array(
-            'result' => 'success',
-            'redirect' => $order->get_checkout_order_received_url()
-        );
+        if ($response->status === 'approved') {
+            $order->payment_complete();
+            return array(
+                'result' => 'success',
+                'redirect' => $order->get_checkout_order_received_url()
+            );
+        } else {
+            // Trate o erro
+            wc_add_notice(__('Erro no pagamento. Por favor, tente novamente.', 'mercado-pago-split'), 'error');
+            return array(
+                'result' => 'fail'
+            );
+        }
     }
 
     public function receipt_page($order) {
-        // Página de recebimento do pagamento
+        echo '<p>' . __('Obrigado por seu pedido, aqui estão os detalhes do pagamento.', 'mercado-pago-split') . '</p>';
     }
 
     public function check_response() {
