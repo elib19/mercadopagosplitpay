@@ -18,6 +18,8 @@ define( 'MP_SPLIT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 require_once MP_SPLIT_PLUGIN_DIR . 'includes/class-mp-split-api.php';
 require_once MP_SPLIT_PLUGIN_DIR . 'includes/class-mp-split-helper.php';
 require_once MP_SPLIT_PLUGIN_DIR . 'includes/mp-split-settings.php';
+include_once MP_SPLIT_PLUGIN_DIR . 'vendor-mercadopago-settings.php';
+include_once MP_SPLIT_PLUGIN_DIR . 'mp-split-settings.php';
 
 // Hooks de instalação e desinstalação
 register_activation_hook( __FILE__, 'mp_split_install' );
