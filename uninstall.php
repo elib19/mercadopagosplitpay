@@ -1,9 +1,7 @@
 <?php
-/**
- * Funções de desinstalação do plugin
- */
-
 function mp_split_uninstall() {
-    delete_option('mp_split_settings');
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'mp_split_vendors';
+    $wpdb->query( "DROP TABLE IF EXISTS $table_name" );
 }
-register_uninstall_hook(__FILE__, 'mp_split_uninstall');
