@@ -1,64 +1,39 @@
 <?php
 
+// Evita acesso direto ao arquivo
+defined('ABSPATH') || exit;
+
 class Mercado_Pago_Vendor {
     public static function init() {
-        add_action('wcfm_vendors_dashboard', array(__CLASS__, 'add_vendor_dashboard'));
-        add_action('wp_ajax_wcfm_vendors_ajax_process_payment', array(__CLASS__, 'process_payment'));
+        // Adiciona hooks e lógica para gerenciar vendedores
+        add_action('wcfm_after_vendors_settings', array(__CLASS__, 'vendor_settings'));
     }
 
-    public static function add_vendor_dashboard() {
-        require_once plugin_dir_path(__FILE__) . '../views/vendor-dashboard.php';
+    public static function vendor_settings() {
+        // Renderiza as configurações específicas do vendedor
+        ?>
+        <div id="mp-split-vendor-settings">
+            <h2><?php _e('Configurações do Mercado Pago', 'mercado-pago-split'); ?></h2>
+            <!-- Campos de configurações do vendedor -->
+        </div>
+        <?php
     }
 
-    public static function process_payment() {
-        if (isset($_POST['payment_data'])) {
-            $payment_data = json_decode(stripslashes($_POST['payment_data']), true);
-            $vendor_id = get_current_user_id(); // ID do vendedor
-            
-            // Processar o pagamento
-            $response = self::make_payment($payment_data, $vendor_id);
-            echo json_encode($response);
-            wp_die(); // encerra corretamente a execução
-        }
-    }
+    public static function make_payment($payment_data, $user_id) {
+        // Lógica para processar o pagamento com o Mercado Pago
+        $api_url = 'https://api.mercadopago.com/v1/payments?access_token=' . get_option('mercado_pago_settings')['access_token'];
 
-    private static function make_payment($payment_data, $vendor_id) {
-        $valor = $payment_data['amount'];
-        $descricao = $payment_data['description'];
-        $access_token = Mercado_Pago_Settings::get_settings()['access_token'];
-        
-        // Cálculo das taxas
-        $marketplace_fee = $valor * 0.10; // 10% de taxa do marketplace
-        $valor_vendedor = $valor - $marketplace_fee;
-
-        // Realiza a chamada para a API do Mercado Pago
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://api.mercadopago.com/v1/payments',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode(array(
-                'transaction_amount' => $valor,
-                'description' => $descricao,
-                'payment_method_id' => 'pix', // ou outro método
-                'payer' => array('email' => $payment_data['email']),
-                'application_fee' => $marketplace_fee,
-                'external_reference' => 'reference-' . time(),
-            )),
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $access_token,
-                'Content-Type: application/json',
+        $response = wp_remote_post($api_url, array(
+            'method'    => 'POST',
+            'body'      => json_encode($payment_data),
+            'headers'   => array(
+                'Content-Type' => 'application/json',
             ),
         ));
 
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        return json_decode($response);
+        return json_decode(wp_remote_retrieve_body($response));
     }
 }
+
+// Inicializa a classe de vendedores
+Mercado_Pago_Vendor::init();
