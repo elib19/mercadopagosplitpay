@@ -33,6 +33,14 @@ function mp_split_install() {
 function mp_split_uninstall() {
     require_once MP_SPLIT_PLUGIN_DIR . 'includes/uninstall.php';
     mp_split_remove_data(); // Remove dados e tabelas
+
+    // Registra as opções do plugin
+function mp_split_register_settings() {
+    register_setting( 'mp_split_settings_group', 'mp_access_token' );
+    register_setting( 'mp_split_settings_group', 'mp_sponsor_id' );
+}
+add_action( 'admin_init', 'mp_split_register_settings' );
+
 }
 
 // Iniciar o plugin
