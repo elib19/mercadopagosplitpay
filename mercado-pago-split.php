@@ -68,7 +68,7 @@ function mercado_pago_uninstall() {
     delete_option('mercado_pago_settings');
 }
 
-// Declaração da classe de configurações do Mercado Pago
+// Classe de configurações do Mercado Pago
 if (!class_exists('Mercado_Pago_Settings')) {
     class Mercado_Pago_Settings {
         public static function init() {
@@ -111,7 +111,7 @@ if (!class_exists('Mercado_Pago_Settings')) {
     }
 }
 
-// Declaração da classe de vendedores do Mercado Pago
+// Classe de vendedores do Mercado Pago
 if (!class_exists('Mercado_Pago_Vendor')) {
     class Mercado_Pago_Vendor {
         public static function init() {
@@ -177,7 +177,7 @@ if (!class_exists('Mercado_Pago_Vendor')) {
     }
 }
 
-// Declaração da classe do gateway de pagamento do Mercado Pago
+// Classe do gateway de pagamento do Mercado Pago
 if (!class_exists('WC_Mercado_Pago_Gateway')) {
     class WC_Mercado_Pago_Gateway extends WC_Payment_Gateway {
         public function __construct() {
@@ -245,3 +245,4 @@ if (!class_exists('WC_Mercado_Pago_Gateway')) {
         }
     }
 }
+
