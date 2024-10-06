@@ -1,43 +1,49 @@
 <?php
 class MP_Split_API {
 
-    public static function process_split_payment( $order, $vendor_access_token, $application_fee ) {
-        $order_id = $order->get_id();
-        $total = $order->get_total();
-        $customer_email = $order->get_billing_email();
-        $description = "Order #$order_id";
+    // Função para processar o split de pagamento
+    public static function process_split_payment( $order, $vendor_id ) {
+        $access_token = MP_Split_Helper::get_vendor_mp_credentials( $vendor_id );
+        $valor = $order->get_total(); // Valor total do pedido
+        $porcentagem_comissao = 10; // Percentual de comissão
 
-        $payment_data = array(
-            'transaction_amount' => $total,
-            'description' => $description,
-            'payment_method_id' => 'pix',
-            'payer' => array( 'email' => $customer_email ),
-            'application_fee' => $application_fee,
-            'external_reference' => $order_id,
-            'notification_url' => get_site_url() . '/mercadopago-webhook/',
+        $comissao_vendedor = $valor * ($porcentagem_comissao / 100);
+        $valor_loja = floatval( number_format( $valor - $comissao_vendedor, 2, '.', '' ) );
+
+        $data = array(
+            'transaction_amount' => $valor,
+            'description' => 'Pagamento de Pedido',
+            'payment_method_id' => 'pix', // Pode ser alterado conforme o método de pagamento
+            'payer' => array(
+                'email' => 'clientemail@gmail.com', // Email do cliente
+            ),
+            'binary_mode' => true,
+            'application_fee' => $valor_loja,
+            'external_reference' => $order->get_order_number(),
+            'notification_url' => 'https://lorde.dev',
+            'additional_info' => array(
+                'items' => array(
+                    array(
+                        'id' => '1',
+                        'title' => 'Pagamento de Pedido',
+                        'description' => 'Descrição do pedido',
+                        'quantity' => 1,
+                        'unit_price' => $valor,
+                    ),
+                ),
+            ),
+            'sponsor_id' => get_user_meta( $vendor_id, 'mp_sponsor_id', true ),
         );
 
-        $response = self::send_request( $payment_data, $vendor_access_token );
-
-        return $response;
-    }
-
-    private static function send_request( $data, $access_token ) {
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://api.mercadopago.com/v1/payments',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode( $data ),
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $access_token,
-                'Content-Type: application/json'
+        // Chamada para a API do Mercado Pago
+        $response = wp_remote_post( 'https://api.mercadopago.com/v1/payments', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $access_token,
+                'Content-Type' => 'application/json',
             ),
+            'body' => json_encode( $data ),
         ));
 
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        return json_decode($response);
+        return json_decode( wp_remote_retrieve_body( $response ) );
     }
 }
