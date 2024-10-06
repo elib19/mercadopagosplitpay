@@ -14,9 +14,13 @@ defined('ABSPATH') || exit;
 
 // Inclui os arquivos necessários
 require_once plugin_dir_path(__FILE__) . 'includes/gateway.php';
+require_once plugin_dir_path(__FILE__) . 'includes/ajax-handler.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-admin.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-settings.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-mercado-pago-vendor.php';
+require_once plugin_dir_path(__FILE__) . 'includes/helper.php';
+require_once plugin_dir_path(__FILE__) . 'includes/install.php';
+require_once plugin_dir_path(__FILE__) . 'uninstall.php';
 
 // Inicializa o plugin
 add_action('plugins_loaded', function() {
