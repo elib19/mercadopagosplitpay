@@ -1,9 +1,12 @@
 <?php
 /**
- * Plugin Name: Mercado Pago Split Plugin
- * Description: Integração do Mercado Pago com split de pagamento para WooCommerce e WCFM Marketplace.
- * Version: 1.0.0
+ * Plugin Name: Mercado Pago Integration
+ * Plugin URI: https://brasilnarede.online/
+ * Description: Integração do Mercado Pago com WooCommerce e WCFM Marketplace.
+ * Version: 1.0
  * Author: Eli Silva
+ * Author URI: https://brasilnarede.online/
+ * License: GPL2
  */
 
 defined('ABSPATH') || exit;
