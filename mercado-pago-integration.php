@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Mercado Pago Integration
- * Plugin URI: https://brasilnarede.online/
+ * Plugin URI: https://juntoaqui.com.br/
  * Description: Integração do Mercado Pago com WooCommerce e WCFM Marketplace.
  * Version: 1.0
  * Author: Eli Silva
- * Author URI: https://brasilnarede.online/
+ * Author URI: https://juntoaqui.com.br/
  * Text Domain: mercado-pago-split
  * Domain Path: /languages
  * License: GPL2
