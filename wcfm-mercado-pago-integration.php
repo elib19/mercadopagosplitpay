@@ -15,7 +15,8 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-// Include necessary files.
+// Include configuration and necessary files.
+include_once plugin_dir_path(__FILE__) . 'includes/config.php';
 include_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
 include_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
 
