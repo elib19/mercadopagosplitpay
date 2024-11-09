@@ -17,10 +17,9 @@ if (!defined('ABSPATH')) {
 
 // Include configuration and necessary files.
 include_once plugin_dir_path(__FILE__) . 'includes/config.php';
-include_once plugin_dir_path(__FILE__) . 'includes/auth.php';
-include_once plugin_dir_path(__FILE__) . 'includes/callback.php';
+include_once plugin_dir_path(__FILE__) . 'oauth/auth.php';
+include_once plugin_dir_path(__FILE__) . 'oauth/callback.php';
 include_once plugin_dir_path(__FILE__) . 'includes/token_handler.php';
-include_once plugin_dir_path(__FILE__) . 'includes/cron.php';
 include_once plugin_dir_path(__FILE__) . 'functions/cron.php';
 include_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
 include_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
