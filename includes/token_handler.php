@@ -23,10 +23,10 @@ function exchange_code_for_token($code) {
     }
 
     $body = json_decode(wp_remote_retrieve_body($response), true);
-
     return $body['access_token'] ?? false;
 }
 
 function save_access_token($token) {
     update_option('mercado_pago_access_token', $token);
 }
+?>
