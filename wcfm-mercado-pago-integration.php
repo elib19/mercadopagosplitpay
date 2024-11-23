@@ -15,14 +15,11 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-// Include configuration and necessary files.
-include_once plugin_dir_path(__FILE__) . 'includes/config.php';
-include_once plugin_dir_path(__FILE__) . 'oauth/auth.php';
-include_once plugin_dir_path(__FILE__) . 'oauth/callback.php';
-include_once plugin_dir_path(__FILE__) . 'includes/token_handler.php';
-include_once plugin_dir_path(__FILE__) . 'functions/cron.php';
-include_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
-include_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
+// Include necessary files.
+require_once plugin_dir_path(__FILE__) . 'includes/config.php';
+require_once plugin_dir_path(__FILE__) . 'includes/token_handler.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
 
 // Initialize the plugin.
 add_action('plugins_loaded', 'wcfm_mercado_pago_init');
