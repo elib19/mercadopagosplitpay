@@ -28,25 +28,27 @@ class WCFM_Mercado_Pago_Auth {
 
     // Trata a resposta da autenticação do Mercado Pago
     public function handle_oauth_callback() {
-        $code = $_GET['code'] ?? '';
-        $state = $_GET['state'] ?? '';
+        if (isset($_GET['code'])) {
+            $code = $_GET['code'];
+            $state = $_GET['state'];
 
-        // Verifica se o estado corresponde
-        $stored_state = get_transient('mercado_pago_auth_state');
-        if ($state !== $stored_state) {
-            wp_die(__('Erro de autenticação: estado inválido.', 'wcfmmp'));
-        }
+            // Verifica se o estado corresponde
+            $stored_state = get_transient('mercado_pago_auth_state');
+            if ($state !== $stored_state) {
+                wp_die(__('Erro de autenticação: estado inválido.', 'wcfmmp'));
+            }
 
-        // Troca o código por um token de acesso
-        $access_token = exchange_code_for_token($code);
+            // Troca o código por um token de acesso
+            $access_token = exchange_code_for_token($code);
 
-        if ($access_token) {
-            // Salva o token de acesso
-            save_access_token($access_token);
-            wp_redirect(admin_url('admin.php?page=wcfm-settings'));
-            exit;
-        } else {
-            wp_die(__('Erro ao conectar Mercado Pago.', 'wcfmmp'));
+            if ($access_token) {
+                // Salva o token de acesso
+                save_access_token($access_token);
+                wp_redirect(admin_url('admin.php?page=wcfm-settings'));
+                exit;
+            } else {
+                wp_die(__('Erro ao conectar Mercado Pago.', 'wcfmmp'));
+            }
         }
     }
 }
