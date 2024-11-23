@@ -6,3 +6,4 @@ define('TOKEN_URL', 'https://api.mercadopago.com/oauth/token');
 
 // Redirecionamento padrão configurável
 define('REDIRECT_URI', admin_url('admin-post.php?action=mp_oauth_callback'));
+?>
