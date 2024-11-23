@@ -34,3 +34,4 @@ function renew_access_token() {
         error_log('Erro ao renovar token: ' . $response->get_error_message());
     }
 }
+?>
