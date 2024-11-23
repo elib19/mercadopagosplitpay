@@ -15,17 +15,23 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-// Include necessary files.
-require_once plugin_dir_path(__FILE__) . 'includes/config.php';
-require_once plugin_dir_path(__FILE__) . 'includes/token_handler.php';
-require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
-require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
+// Verifica se o WCFM Marketplace está ativo
+if (class_exists('WCFMmp')) {
+    // Incluir arquivos necessários
+    require_once plugin_dir_path(__FILE__) . 'includes/config.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/token_handler.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
+    require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
 
-// Initialize the plugin.
-add_action('plugins_loaded', 'wcfm_mercado_pago_init');
+    // Inicializa o plugin
+    add_action('plugins_loaded', 'wcfm_mercado_pago_init');
+}
+
 function wcfm_mercado_pago_init() {
+    // Verifica se o WCFM Marketplace está ativo
     if (class_exists('WCFMmp')) {
         new WCFMmp_Gateway_Mercado_Pago();
         new WCFM_Mercado_Pago_Auth();
     }
 }
+?>
