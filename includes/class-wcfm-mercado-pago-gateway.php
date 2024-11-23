@@ -1,4 +1,5 @@
 <?php
+// includes/class-wcfm-mercado-pago-gateway.php
 
 class WCFMmp_Gateway_Mercado_Pago {
     public function __construct() {
@@ -31,3 +32,4 @@ class WCFMmp_Gateway_Mercado_Pago {
         return $payment_keys;
     }
 }
+?>
