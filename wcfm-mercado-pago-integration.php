@@ -32,6 +32,8 @@ function wcfm_mercado_pago_init() {
     if (class_exists('WCFMmp')) {
         new WCFMmp_Gateway_Mercado_Pago();
         new WCFM_Mercado_Pago_Auth();
+    } else {
+        error_log('Erro: WCFM Marketplace não encontrado.');
     }
 }
 ?>
