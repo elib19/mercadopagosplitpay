@@ -3,6 +3,7 @@
 
 require_once __DIR__ . '/config.php';
 
+// Troca o código de autorização por um token de acesso
 function exchange_code_for_token($code) {
     $data = [
         'grant_type'    => 'authorization_code',
@@ -26,6 +27,7 @@ function exchange_code_for_token($code) {
     return $body['access_token'] ?? false;
 }
 
+// Salva o token de acesso
 function save_access_token($token) {
     update_option('mercado_pago_access_token', $token);
 }
