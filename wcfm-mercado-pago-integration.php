@@ -9,28 +9,43 @@
  * Text Domain: mercado-pago-wcfm
  */
 
-// Bloquear acesso direto
-if (!defined('ABSPATH')) {
-    exit;
-}
+// Incluir os arquivos de funcionalidade
+require_once plugin_dir_path(__FILE__) . 'includes/oauth.php';
+require_once plugin_dir_path(__FILE__) . 'includes/payment-processing.php';
+require_once plugin_dir_path(__FILE__) . 'includes/webhook-listener.php';
 
-// Definir constantes
-define('MP_WCFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('MP_WCFM_PLUGIN_URL', plugin_dir_url(__FILE__));
-
-// Carregar arquivos essenciais
-require_once MP_WCFM_PLUGIN_DIR . 'includes/class-mp-oauth.php';
-require_once MP_WCFM_PLUGIN_DIR . 'includes/class-wcfm-connector.php';
-require_once MP_WCFM_PLUGIN_DIR . 'includes/class-token-updater.php';
-
-// Inicializar o plugin
-add_action('plugins_loaded', function () {
-    if (class_exists('WCFMmp') && class_exists('WooCommerce')) {
-        MP_WCFM_OAuth::init();
-        MP_WCFM_Connector::init();
-    } else {
-        add_action('admin_notices', function () {
-            echo '<div class="notice notice-error"><p><strong>O plugin Mercado Pago WCFM Integration requer o WooCommerce e o WCFM Marketplace ativos.</strong></p></div>';
-        });
-    }
+// Adicionar o Gateway de Pagamento no WCFM Marketplace
+add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
+    $payment_methods['mercado_pago'] = 'Mercado Pago';
+    return $payment_methods;
 });
+
+// Adicionar Campos de Configuração da API do Mercado Pago
+add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
+    $gateway_slug = 'mercado_pago';
+    $client_id = isset($wcfm_withdrawal_options[$gateway_slug . '_client_id']) ? $wcfm_withdrawal_options[$gateway_slug . '_client_id'] : '';
+    $secret_key = isset($wcfm_withdrawal_options[$gateway_slug . '_secret_key']) ? $wcfm_withdrawal_options[$gateway_slug . '_secret_key'] : '';
+    $access_token = isset($wcfm_withdrawal_options[$gateway_slug . '_access_token']) ? $wcfm_withdrawal_options[$gateway_slug . '_access_token'] : '';
+    $payment_mercado_pago_keys = array(
+        "withdrawal_" . $gateway_slug . "_client_id" => array(
+            'label' => __('Mercado Pago Client ID', 'wc-multivendor-marketplace'),
+            'name' => 'wcfm_withdrawal_options[' . $gateway_slug . '_client_id]',
+            'type' => 'text',
+            'value' => $client_id
+        ),
+        "withdrawal_" . $gateway_slug . "_secret_key" => array(
+            'label' => __('Mercado Pago Secret Key', 'wc-multivendor-marketplace'),
+            'name' => 'wcfm_withdrawal_options[' . $gateway_slug . '_secret_key]',
+            'type' => 'text',
+            'value' => $secret_key
+        ),
+        "withdrawal_" . $gateway_slug . "_access_token" => array(
+            'label' => __('Mercado Pago Access Token', 'wc-multivendor-marketplace'),
+            'name' => 'wcfm_withdrawal_options[' . $gateway_slug . '_access_token]',
+            'type' => 'text',
+            'value' => $access_token
+        )
+    );
+    $payment_keys = array_merge($payment_keys, $payment_mercado_pago_keys);
+    return $payment_keys;
+}, 50, 2);
