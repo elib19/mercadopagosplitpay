@@ -53,17 +53,26 @@ add_action('init', 'mercado_pago_oauth_callback');
 
 // Função para exibir o link de conexão do Mercado Pago no perfil do vendedor
 function mercado_pago_connect_link() {
-    $auth_url = mercado_pago_oauth_url();
-    echo '<a href="' . esc_url($auth_url) . '" class="button">Conectar minha conta Mercado Pago</a>';
+    // Verifica se o vendedor já está conectado
+    $access_token = get_user_meta(get_current_user_id(), 'mercado_pago_access_token', true);
+    
+    if (!$access_token) {
+        // Se não estiver conectado, exibe o link de autenticação
+        $auth_url = mercado_pago_oauth_url();
+        echo '<a href="' . esc_url($auth_url) . '" class="button">Conectar minha conta Mercado Pago</a>';
+    } else {
+        // Se já estiver conectado, exibe uma mensagem de sucesso
+        echo '<p>Você está conectado ao Mercado Pago!</p>';
+    }
 }
 add_action('wcfmmp_vendors_dashboard_after', 'mercado_pago_connect_link');
 
 // Função para processar o pagamento com split (divisão de pagamento)
 function mercado_pago_process_split_payment($order_id) {
     $order = wc_get_order($order_id);
-    $vendor_id = get_post_meta($order_id, '_wcfmmp_vendor_id', true);
+    $vendor_id = get_post_meta($order_id, '_wcfmmp_vendor_id', true); // ID do vendedor
     $amount = $order->get_total();
-    $access_token = get_user_meta($vendor_id, 'mercado_pago_access_token', true);
+    $access_token = get_user_meta($vendor_id, 'mercado_pago_access_token', true); // Acesso do Mercado Pago do vendedor
 
     if (!$access_token) {
         return new WP_Error('mercado_pago_error', 'Vendedor não conectado ao Mercado Pago.');
