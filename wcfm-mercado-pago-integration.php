@@ -1,39 +1,36 @@
 <?php
 /**
- * Plugin Name: Mercado Pago Integration
- * Plugin URI: https://juntoaqui.com.br/
+ * Plugin Name: Mercado Pago WCFM Integration
+ * Plugin URI: https://juntoaqui.com.br
  * Description: Integração do Mercado Pago com WooCommerce e WCFM Marketplace.
- * Version: 1.0
+ * Version: 1.0.0
  * Author: Eli Silva
- * Author URI: https://juntoaqui.com.br/
- * Text Domain: mercado-pago-split
- * Domain Path: /languages
- * License: GPL2
+ * Author URI: https://juntoaqui.com.br
+ * Text Domain: mercado-pago-wcfm
  */
 
+// Bloquear acesso direto
 if (!defined('ABSPATH')) {
-    exit; // Exit if accessed directly.
+    exit;
 }
 
-// Verifica se o WCFM Marketplace está ativo
-if (class_exists('WCFMmp')) {
-    // Incluir arquivos necessários
-    require_once plugin_dir_path(__FILE__) . 'includes/config.php';
-    require_once plugin_dir_path(__FILE__) . 'includes/token_handler.php';
-    require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-gateway.php';
-    require_once plugin_dir_path(__FILE__) . 'includes/class-wcfm-mercado-pago-auth.php';
+// Definir constantes
+define('MP_WCFM_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('MP_WCFM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-    // Inicializa o plugin
-    add_action('plugins_loaded', 'wcfm_mercado_pago_init');
-}
+// Carregar arquivos essenciais
+require_once MP_WCFM_PLUGIN_DIR . 'includes/class-mp-oauth.php';
+require_once MP_WCFM_PLUGIN_DIR . 'includes/class-wcfm-connector.php';
+require_once MP_WCFM_PLUGIN_DIR . 'includes/class-token-updater.php';
 
-function wcfm_mercado_pago_init() {
-    // Verifica se o WCFM Marketplace está ativo
-    if (class_exists('WCFMmp')) {
-        new WCFMmp_Gateway_Mercado_Pago();
-        new WCFM_Mercado_Pago_Auth();
+// Inicializar o plugin
+add_action('plugins_loaded', function () {
+    if (class_exists('WCFMmp') && class_exists('WooCommerce')) {
+        MP_WCFM_OAuth::init();
+        MP_WCFM_Connector::init();
     } else {
-        error_log('Erro: WCFM Marketplace não encontrado.');
+        add_action('admin_notices', function () {
+            echo '<div class="notice notice-error"><p><strong>O plugin Mercado Pago WCFM Integration requer o WooCommerce e o WCFM Marketplace ativos.</strong></p></div>';
+        });
     }
-}
-?>
+});
