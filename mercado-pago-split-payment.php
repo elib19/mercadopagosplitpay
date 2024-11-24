@@ -3,7 +3,7 @@
  * Plugin Name: Mercado Pago Split Payment
  * Description: Integração do Mercado Pago com split de pagamento para o WCFM Marketplace.
  * Version: 1.0
- * Author: Seu Nome
+ * Author: Eli Silva
  * Text Domain: mercado-pago-split-payment
  */
 
