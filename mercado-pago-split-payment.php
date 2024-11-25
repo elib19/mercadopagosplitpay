@@ -1,35 +1,364 @@
 <?php
-/*
-Plugin Name: Mercado Pago Split Payment
-Description: Integração do Mercado Pago com o WooCommerce e WCFM para pagamento dividido usando OAuth 2.0.
-Version: 1.0
-Author: Seu Nome
-*/
 
-// Impede o acesso direto ao arquivo
+/**
+ * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
+ * Plugin URI: https://github.com/mercadopago/cart-woocommerce
+ * Description: Configure the payment options and accept payments with cards, ticket and money of Mercado Pago account.
+ * Version: 4.6.0
+ * Author: Alex Lana (hack do Mercado Pago payments for WooCommerce)
+ * Author URI: https://developers.mercadopago.com/
+ * Text Domain: woocommerce-mercadopago-split
+ * Domain Path: /i18n/languages/
+ * WC requires at least: 3.0.0
+ * WC tested up to: 4.7.0
+ * @package MercadoPago
+ * @category Core
+ * @author Alex Lana (hack do Mercado Pago payments for WooCommerce)
+ */
+
+// Exit if accessed directly.
 if (!defined('ABSPATH')) {
     exit;
 }
 
-// Define constantes
-define('MP_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('MP_PLUGIN_URL', plugin_dir_url(__FILE__));
+if (!defined('WC_MERCADOPAGO_SPLT_BASENAME')) {
+    define('WC_MERCADOPAGO_SPLT_BASENAME', plugin_basename(__FILE__));
+}
 
-// Inclui arquivos necessários
-require_once MP_PLUGIN_DIR . 'includes/class-mp-gateway.php';
-require_once MP_PLUGIN_DIR . 'includes/class-mp-oauth.php';
+if (!function_exists('is_plugin_active')) {
+    include_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
 
-// Inicializa o plugin
-function mp_init() {
-    // Adiciona o gateway de pagamento ao WooCommerce
-    add_filter('woocommerce_payment_gateways', function ($gateways) {
-        $gateways[] = 'MP_Gateway';
-        return $gateways;
-    });
+if (!class_exists('WC_WooMercadoPagoSplit_Init')) {
+    include_once dirname(__FILE__) . '/includes/module/WC_WooMercadoPagoSplit_Init.php';
 
-    // Adiciona scripts e estilos apenas na página de configurações de pagamento do WooCommerce
-    if (isset($_GET['page']) && $_GET['page'] == 'wc-settings' && isset($_GET['tab']) && $_GET['tab'] == 'checkout') {
-        wp_enqueue_script('mp-script', MP_PLUGIN_URL . 'assets/js/mp-script.js', array('jquery'), '1.0', true);
+    register_activation_hook(__FILE__, array('WC_WooMercadoPagoSplit_Init', 'mercadopago_plugin_activation'));
+    add_action('plugins_loaded', array('WC_WooMercadoPagoSplit_Init', 'woocommerce_mercadopago_init'));
+}
+
+
+
+
+
+
+
+////////////////////////////////////////////////////
+// GAMBIARRA PARA CRIAR USUARIOS DE TESTE, cria os usuarios, mas talvez nao seja tao util: https://www.mercadopago.com.br/developers/pt/guides/online-payments/checkout-pro/test-integration
+// $ch = curl_init();
+// curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+// curl_setopt($ch, CURLOPT_URL, 'https://api.mercadopago.com/users/test_user');
+// curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+// 	'Content-Type: application/json',
+// 	'Authorization: Bearer APP_USR-',
+// ));
+// curl_setopt($ch, CURLOPT_POST, true);
+// curl_setopt($ch, CURLOPT_POSTFIELDS, '{"site_id":"MLB"}');
+// $output = curl_exec($ch);
+// curl_close($ch);
+// print_r($output);
+// exit;
+
+
+
+
+if ( !is_admin() ) {
+
+	////////////////////////////////////////////////////
+	// SHORTCODE PARA VINCULAR CONTAS
+	function wcmps_integrar_contas () {
+		global $_GET;
+
+		?>
+		<style type="text/css">
+			#mp-box {
+				max-width: 90%;
+				width: 500px;
+				margin: auto;
+				padding: 30px;
+				background: #F0F7F6;
+			}
+			#mp-box.existing p {
+				margin-bottom: 0;
+			}
+			#desv-box {
+				max-width: 90%;
+				width: 500px;
+				margin: auto;
+				padding: 30px;
+				line-height: 1.2;
+				color: gray;
+			}
+			#desv-box * {
+				line-height: 1.2;
+			}
+		</style>
+		<?php
+
+		if ( isset($_GET['code']) && !empty($_GET['code']) && (int)get_current_user_id() > 0 ) {
+			if ( base64_decode( $_GET['state'] ) == get_current_user_id() ) {
+				update_user_meta( get_current_user_id(), 'wcmps_authcode', $_GET['code'] );
+				if ( wcmps_vendedor() ) {
+				} elseif ( strlen( get_user_meta( get_current_user_id(), 'wcmps_authcode', true ) ) == 0 || strlen( $cred->refresh_token ) == 0 ) {
+					?>
+					<ul class="woocommerce-error" role="alert">
+						<li>
+							Erro ao tentar verificar sua conta junto ao Mercado Pago. Pode ser temporário, mas se o problema persistir, por favor, verifique se sua conta está vinculada.
+						</li>
+						<li>
+							<a href="https://appstore.mercadolivre.com.br/apps/permissions" target="_blank">Verificar no Mercado Pago</a>
+						</li>
+						<li>
+							<a href="<?php echo wcmps_auth_url(); ?>">Renovar vínculo</a>
+						</li>
+					</ul>
+					<?php
+				}
+			} else {
+				?>
+				<ul class="woocommerce-error" role="alert">
+					<li>
+						Erro de usuário. Por favor, verifique o usuário logado e tente novamente.
+					</li>
+				</ul>
+				<?php
+			}
+		} else if ( (int)get_current_user_id() == 0 ) {
+			echo '<div class="message error">Por favor, faça login antes de tentar vincular a conta.</div>';
+		}
+
+		if ( (int)get_current_user_id() > 0 ) {
+			$authcode = get_user_meta( get_current_user_id(), 'wcmps_authcode', true );
+			$cred = json_decode( get_user_meta( get_current_user_id(), 'wcmps_credentials', true ) );
+			if ( strlen($authcode) == 0 || strlen($cred->refresh_token) == 0 ) {
+				?>
+				<div id="mp-box">
+					<p style="font-size:90%;">Para que você receba os pagamentos feitos no marketplace é necessário vincular sua conta do Mercado Pago à nossa loja. Clique no botão abaixo para vincular.</p>
+					<a href="<?php echo wcmps_auth_url(); ?>" class="button">Vincular conta do Mercado Pago</a>
+				</div>
+				<?php
+			} else {
+				?>
+				<div id="mp-box" class="existing">
+					<p style="font-size:90%;">Parabéns, sua conta está vinculada! Por favor, por segurança, acesse <a href="https://appstore.mercadolivre.com.br/apps/permissions" target="_blank">aplicativos conectados</a> em sua conta no Mercado Pago para confirmar.</p>
+				</div>
+				<div id="desv-box">
+					<p><small><b>Desvincular conta do Mercado Pago</b><br>ATENÇÃO: se você desvincular sua conta, não será possível receber seus pagamentos relativos a compras futuras.</small></p>
+				</div>
+				<?php
+			}
+		} else {
+			?>
+			<p>Por favor, faça login para ter acesso a esta página.</p>
+			<?php
+		}
+	}
+	add_shortcode( 'wcmps_integrar_contas', 'wcmps_integrar_contas' );
+
+
+	////////////////////////////////////////////////////
+	// URL DO MERCADO PAGO PARA VINCULAR CONTAS
+	function wcmps_auth_url () {
+		$meta = get_option('woocommerce_woo-mercado-pago-split-basic_settings');
+		$url = 'https://auth.mercadopago.com.br/authorization?client_id='.$meta['_mp_appid'].'&response_type=code&platform_id=mp&state='.base64_encode(get_current_user_id()).'&redirect_uri=' . urlencode( $meta['_mp_returnurl'] );
+		return $url;
+	}
+
+	////////////////////////////////////////////////////
+	// DADOS DO VENDEDOR NO MERCADO PAGO
+	function wcmps_vendedor () {
+
+		$meta = get_option('woocommerce_woo-mercado-pago-split-basic_settings');
+
+		if ( $meta['checkout_credential_prod'] == 'no' ) {
+			$token = $meta['_mp_access_token_test'];
+		} else {
+			$token = $meta['_mp_access_token_prod'];
+		}
+		$dt = 'client_secret='.$token.'&grant_type=authorization_code&code='.get_user_meta( get_current_user_id(), 'wcmps_authcode', true ).'&redirect_uri='.urlencode( $meta['_mp_returnurl'] );
+
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_URL, 'https://api.mercadopago.com/oauth/token');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+			'content-type: application/x-www-form-urlencoded',
+			'accept: application/json',
+		));
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $dt);
+
+		$output = curl_exec($ch);
+		curl_close($ch);
+		$_output = json_decode($output);
+		if ( !$_output->error ) {
+			update_user_meta( get_current_user_id(), 'wcmps_credentials', $output );
+			update_user_meta( get_current_user_id(), 'wcmps_refreshed', date('Ymd') );
+			return true;
+		} elseif ( $_output->status == 400 ) {
+			// o erro do mercado livre nao eh claro, mas na maioria das vezes eh resultado do vinculo estar ativo
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+
+	////////////////////////////////////////////////////
+	// RENOVAR DADOS DO VENDEDOR NO MERCADO PAGO
+	function wcmps_renovacao_cron () {
+		global $wpdb;
+		$meta = get_option('woocommerce_woo-mercado-pago-split-basic_settings');
+		if ( $meta['checkout_credential_prod'] == 'no' ) {
+			$token = $meta['_mp_access_token_test'];
+		} else {
+			$token = $meta['_mp_access_token_prod'];
+		}
+		$hoje = date( 'Ymd' );
+		$limite = date( 'Ymd', strtotime( date('Y-m-d H:i:s')." - 1 month" ) );
+		$res = $wpdb->get_results( 'select user_id from '.$wpdb->prefix.'usermeta where meta_key = "wcmps_refreshed" and meta_value <= '.$limite, ARRAY_A );
+		for ( $i=0; $i<count($res); $i++ ) {
+			wcmps_renovacao( $res[$i]['user_id'], $meta, $token );
+		}
+	}
+	add_action( 'wcmps_renovacao_cron', 'wcmps_renovacao_cron' );
+
+	function wcmps_renovacao ( $uid, $meta, $token ) {
+
+		$um = get_user_meta( $uid, 'wcmps_credentials', true );
+		$um = json_decode($um);
+		$rtoken = json_decode( get_user_meta( $uid, 'wcmps_credentials', true ) );
+		$dt = 'client_secret='.$token.'&grant_type=refresh_token&refresh_token='.$rtoken->refresh_token;
+
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_URL, 'https://api.mercadopago.com/oauth/token');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+			'content-type: application/x-www-form-urlencoded',
+			'accept: application/json',
+		));
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $dt);
+
+		$output = curl_exec($ch);
+		curl_close($ch);
+
+		$_output = json_decode($output);
+		if ( !$_output->error ) {
+			update_user_meta( $uid, 'wcmps_credentials', $output );
+			update_user_meta( $uid, 'wcmps_refreshed', date('Ymd') );
+			return true;
+		} else {
+			return false;
+		}
+
+	}
+
+	function wcmps_start_cron() {
+		if( !wp_next_scheduled( 'wcmps_renovacao_cron' ) ) {  
+		   wp_schedule_event( time(), 'daily', 'wcmps_renovacao_cron' );  
+		}
+	}
+	add_action('wp', 'wcmps_start_cron');
+
+	function wcmps_stop_cron() {	
+		$timestamp = wp_next_scheduled('wcmps_renovacao_cron');
+		wp_unschedule_event($timestamp, 'wcmps_renovacao_cron');
+	} 
+	register_deactivation_hook(__FILE__, 'wcmps_stop_cron');
+
+
+} // if !is_admin
+
+////////////////////////////////////////////////////
+// DADOS DOS VENDEDOR NO MERCADO PAGO
+function wcmps_get_cart_vendors() {
+    if ( WC() && WC()->cart ) {
+        $produtos = WC()->cart->get_cart();
+        $vendedores = array();
+
+        foreach ($produtos as $key => $data) {
+            $v = wcfm_get_vendor_id_by_post( $data['product_id'] );
+            if ( (int)$v > 0 ) {
+                // Adiciona o vendedor ao array, se ainda não estiver presente
+                if (!in_array($v, $vendedores)) {
+                    $vendedores[] = $v;
+                }
+            }
+        }
+        return $vendedores;
     }
 }
-add_action('plugins_loaded', 'mp_init');
+
+// Função para processar o pagamento com múltiplos vendedores
+function wcmps_process_payment($order_id) {
+    $order = wc_get_order($order_id);
+    $vendedores = wcmps_get_cart_vendors();
+    
+    // Prepare os dados para a API do Mercado Pago
+    $payment_data = array(
+        "transaction_amount" => $order->get_total(),
+        "description" => "Compra na loja",
+        "payment_method_id" => "pix", // ou outro método de pagamento
+        "payer" => array(
+            "email" => $order->get_billing_email(),
+        ),
+        "metadata" => array(
+            "order_id" => $order_id,
+        ),
+        "split" => array() // Aqui você adicionará a lógica de divisão
+    );
+
+    // Lógica para dividir o pagamento entre os vendedores
+    foreach ($vendedores as $vendedor_id) {
+        $percentual = 50; // Exemplo: cada vendedor recebe 50% do total
+        $valor_vendedor = ($order->get_total() * $percentual) / 100;
+
+        $payment_data['split'][] = array(
+            "vendor_id" => $vendedor_id,
+            "amount" => $valor_vendedor,
+        );
+    }
+
+   // Chamada para a API do Mercado Pago
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, 'https://api.mercadopago.com/v1/payments');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payment_data));
+curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Content-Type: application/json',
+    'Authorization: Bearer ' . $your_access_token,
+));
+
+$response = curl_exec($ch);
+$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE); // Obtém o código de status HTTP
+curl_close($ch);
+
+// Processar a resposta da API
+$response_data = json_decode($response);
+if (isset($response_data->id)) {
+    // Pagamento processado com sucesso
+    // Aqui você pode adicionar lógica para atualizar o pedido, enviar e-mails, etc.
+} else {
+    // Tratar erro
+    $error_message = 'Erro ao processar pagamento.';
+
+    // Verifique se a resposta contém um erro
+    if (isset($response_data->message)) {
+        $error_message .= ' Mensagem: ' . $response_data->message;
+    }
+
+    if (isset($response_data->error)) {
+        $error_message .= ' Erro: ' . $response_data->error;
+    }
+
+    // Log do erro para depuração
+    error_log($error_message);
+
+    // Notificar o administrador (opcional)
+    $admin_email = get_option('admin_email');
+    wp_mail($admin_email, 'Erro no processamento de pagamento', $error_message);
+
+    // Aqui você pode adicionar lógica para notificar o usuário sobre o erro
+    // Por exemplo, redirecionar para uma página de erro ou exibir uma mensagem
+    wc_add_notice(__('Ocorreu um erro ao processar seu pagamento. Por favor, tente novamente mais tarde.'), 'error');
+}
