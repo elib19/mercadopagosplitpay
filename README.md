@@ -1,18 +1,17 @@
-=== Mercado Pago Split Payment ===
-Contributors: Seu Nome
-Tags: mercado pago, woocommerce, pagamento, split, marketplace
-Requires at least: 5.0
-Tested up to: 6.0
-Stable tag: 1.0
+# Mercado Pago Split Payment
 
-== Description ==
-Integração do Mercado Pago com suporte a split de pagamentos para WooCommerce.
+Este plugin integra o Mercado Pago com o WooCommerce e o WCFM para permitir pagamentos divididos usando OAuth 2.0.
 
-== Installation ==
-1. Faça o upload da pasta do plugin para o diretório `/wp-content/plugins/`.
-2. Ative o plugin através do menu 'Plugins' no WordPress.
-3. Configure as opções do plugin na página de configurações do Mercado Pago.
+## Instalação
 
-== Changelog ==
-= 1.0 =
-* Lançamento inicial.
+1. Faça o download do plugin.
+2. Extraia o conteúdo na pasta `wp-content/plugins/`.
+3. Ative o plugin através do painel de administração do WordPress.
+
+## Configuração
+
+- Insira seu Client ID e Client Secret nas configurações do WooCommerce.
+
+## Contribuição
+
+Sinta-se à vontade para contribuir com melhorias e correções.
