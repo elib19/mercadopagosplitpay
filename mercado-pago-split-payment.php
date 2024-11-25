@@ -1,11 +1,10 @@
 <?php
-/**
- * Plugin Name: Mercado Pago Split Payment
- * Description: Integração do Mercado Pago com split de pagamento para o WCFM Marketplace.
- * Version: 1.0
- * Author: Eli Silva
- * Text Domain: mercado-pago-split-payment
- */
+/*
+Plugin Name: Mercado Pago Split Payment
+Description: Integração do Mercado Pago com o WooCommerce e WCFM para pagamento dividido usando OAuth 2.0.
+Version: 1.0
+Author: Seu Nome
+*/
 
 // Impede o acesso direto ao arquivo
 if (!defined('ABSPATH')) {
@@ -28,7 +27,9 @@ function mp_init() {
         return $gateways;
     });
 
-    // Adiciona scripts e estilos
-    wp_enqueue_script('mp-script', MP_PLUGIN_URL . 'assets/js/mp-script.js', array('jquery'), '1.0', true);
+    // Adiciona scripts e estilos apenas na página de configurações de pagamento do WooCommerce
+    if (isset($_GET['page']) && $_GET['page'] == 'wc-settings' && isset($_GET['tab']) && $_GET['tab'] == 'checkout') {
+        wp_enqueue_script('mp-script', MP_PLUGIN_URL . 'assets/js/mp-script.js', array('jquery'), '1.0', true);
+    }
 }
 add_action('plugins_loaded', 'mp_init');
