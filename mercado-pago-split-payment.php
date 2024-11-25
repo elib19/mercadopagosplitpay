@@ -1,12 +1,12 @@
-<?php
+ <?php
 
 /**
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
- * Plugin URI: https://github.com/mercadopago/cart-woocommerce
+ * Plugin URI: https://juntoaqui.com.br
  * Description: Configure the payment options and accept payments with cards, ticket and money of Mercado Pago account.
- * Version: 4.6.0
- * Author: Alex Lana (hack do Mercado Pago payments for WooCommerce)
- * Author URI: https://developers.mercadopago.com/
+ * Version: 1.0.0
+ * Author: Eli Silva (hack do Mercado Pago payments for WooCommerce)
+ * Author URI: https://juntoaqui.com.br
  * Text Domain: woocommerce-mercadopago-split
  * Domain Path: /i18n/languages/
  * WC requires at least: 3.0.0
