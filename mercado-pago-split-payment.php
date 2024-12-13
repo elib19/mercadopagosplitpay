@@ -13,7 +13,7 @@
  * WC tested up to: 4.7.0
  * @package MercadoPago
  * @category Core
- * @author Alex Lana (hack do Mercado Pago payments for WooCommerce)
+ * @author Eli Silva (hack do Mercado Pago payments for WooCommerce)
  */
 // Impedir acesso direto
 if (!defined('ABSPATH')) {
