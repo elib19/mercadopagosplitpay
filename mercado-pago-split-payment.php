@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
  * Plugin URI: https://juntoaqui.com.br
- * Description: Configure the payment options and accept payments with cards, ticket and money of Mercado Pago account.
+ * Description: Configure the payment options and accept payments with cards, ticket, and money of Mercado Pago account.
  * Version: 1.0.0
  * Author: Eli Silva (hack do Mercado Pago payments for WooCommerce)
  * Author URI: https://juntoaqui.com.br
@@ -98,8 +98,7 @@ function process_mercado_pago_auth_code() {
             $body = json_decode(wp_remote_retrieve_body($response), true);
 
             if (isset($body['access_token'])) {
-                $user_id ```php
-                = get_current_user_id();
+                $user_id = get_current_user_id();
                 update_user_meta($user_id, '_mercado_pago_access_token', $body['access_token']);
                 update_user_meta($user_id, '_mercado_pago_refresh_token', $body['refresh_token']);
                 update_user_meta($user_id, '_mercado_pago_token_expires', time() + $body['expires_in']);
@@ -223,114 +222,27 @@ function init_split_mercado_pago_gateway() {
             ];
 
             $body = [
-                ' ```php
                 'transaction_amount' => $total,
                 'currency_id' => $order->get_currency(),
                 'payer' => [
                     'email' => $order->get_billing_email()
                 ],
-                'additional_info' => [
-                    'split' => $split_data
-                ]
+                'transaction_details' => [
+                    'products' => $order->get_items()
+                ],
+                'split_payment' => $split_data
             ];
 
             $response = wp_remote_post('https://api.mercadopago.com/v1/payments', [
+                'body' => json_encode($body),
                 'headers' => [
                     'Authorization' => 'Bearer ' . $access_token,
-                    'Content-Type' => 'application/json',
-                ],
-                'body' => json_encode($body)
+                    'Content-Type' => 'application/json'
+                ]
             ]);
 
-            if (is_wp_error($response)) {
-                throw new Exception('Erro ao processar pagamento com o Mercado Pago Split.');
-            }
-
-            $response_data = json_decode(wp_remote_retrieve_body($response), true);
-
-            if (empty($response_data['status']) || $response_data['status'] !== 'approved') {
-                throw new Exception('Pagamento não aprovado pelo Mercado Pago Split.');
-            }
-
-            // Atualizar meta do pedido com detalhes do pagamento
-            $order->add_order_note('Pagamento processado com sucesso pelo Mercado Pago Split.');
-            $order->save();
+            return $response;
         }
     }
 }
-
-/**
- * 6. Hooks para integrar ao WCFM
- */
-add_action('wcfm_settings_update', 'save_vendor_mercado_pago_credentials');
-function save_vendor_mercado_pago_credentials($user_id) {
-    if (isset($_POST['mercado_pago_access_token'])) {
-        update_user_meta($user_id, '_mercado_pago_access_token', sanitize_text_field($_POST['mercado_pago_access_token']));
-    }
-
-    if (isset($_POST['mercado_pago_account_id'])) {
-        update_user_meta($user_id, '_mercado_pago_account_id', sanitize_text_field($_POST['mercado_pago_account_id']));
-    }
-}
-
-add_filter('wcfmmp_is_allow_commission_split', '__return_true');
-
-/**
- * 7. Atualizar Tokens OAuth com o Refresh Token
- */
-function refresh_mercado_pago_access_token($user_id) {
-    $refresh_token = get_user_meta($user_id, '_mercado_pago_refresh_token', true);
-    $client_id = get_option('mercado_pago_client_id');
-    $client_secret = get_option('mercado_pago_client_secret');
-
-    if (!$refresh_token || !$client_id || !$client_secret) {
-        return false;
-    }
-
-    $response = wp_remote_post('https://api.mercadopago.com/oauth/token', [
-        'body' => [
-            'grant_type' => 'refresh_token',
-            'client_id' => $client_id,
-            'client_secret' => $client_secret,
-            'refresh_token' => $refresh_token,
-        ]
-    ]);
-
-    if (is_wp_error($response)) {
-        return false;
-    }
-
-    $body = json_decode(wp_remote_retrieve_body($response), true);
-
-    if (isset($body['access_token'])) {
-        update_user_meta($user_id, '_mercado_pago_access_token', $body['access_token']);
-        update_user_meta($user_id, '_mercado_pago_refresh_token', $body['refresh_token']);
-        update_user_meta($user_id, '_mercado_pago_token_expires', time() + $body['expires_in']);
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * 8. Validação do Token Antes do Pagamento
- */
-function validate_mercado_pago_token($user_id) {
-    $token_expires = get_user_meta($user_id, '_mercado_pago_token_expires', true);
-
-    if (time() >= $token_expires) {
-        return refresh_mercado_pago_access_token($user_id);
-    }
-
-    return true;
-}
-
-add_action('woocommerce_order_status_processing', 'validate_split_payment_before_processing', 10, 1);
-function validate_split_payment_before_processing($order_id) {
-    $order = wc_get_order($order_id);
-    $vendor_id = get_post_meta($order->get_id(), '_vendor_id', true);
-
-    if (!validate_mercado_pago_token($vendor_id)) {
-        throw new Exception('Token do Mercado Pago expirado ou inválido.');
-    }
-}
+?>
