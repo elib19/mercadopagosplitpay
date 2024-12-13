@@ -1,4 +1,4 @@
- <?php
+<?php
 
 /**
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
@@ -15,6 +15,7 @@
  * @category Core
  * @author Eli Silva (hack do Mercado Pago payments for WooCommerce)
  */
+
 // Impedir acesso direto
 if (!defined('ABSPATH')) {
     exit;
@@ -97,7 +98,8 @@ function process_mercado_pago_auth_code() {
             $body = json_decode(wp_remote_retrieve_body($response), true);
 
             if (isset($body['access_token'])) {
-                $user_id = get_current_user_id();
+                $user_id ```php
+                = get_current_user_id();
                 update_user_meta($user_id, '_mercado_pago_access_token', $body['access_token']);
                 update_user_meta($user_id, '_mercado_pago_refresh_token', $body['refresh_token']);
                 update_user_meta($user_id, '_mercado_pago_token_expires', time() + $body['expires_in']);
@@ -123,6 +125,20 @@ function add_mercado_pago_auth_field($fields) {
         'type' => 'html',
         'value' => '<a href="' . esc_url($auth_link) . '" target="_blank">Conectar ao Mercado Pago</a>'
     ];
+    
+    // Adicionar campos para o Access Token e Account ID
+    $fields['mercado_pago_access_token'] = [
+        'label' => 'Access Token',
+        'type' => 'text',
+        'value' => get_user_meta(get_current_user_id(), '_mercado_pago_access_token', true)
+    ];
+    
+    $fields['mercado_pago_account_id'] = [
+        'label' => 'Account ID',
+        'type' => 'text',
+        'value' => get_user_meta(get_current_user_id(), '_mercado_pago_account_id', true)
+    ];
+    
     return $fields;
 }
 
@@ -207,6 +223,7 @@ function init_split_mercado_pago_gateway() {
             ];
 
             $body = [
+                ' ```php
                 'transaction_amount' => $total,
                 'currency_id' => $order->get_currency(),
                 'payer' => [
@@ -317,4 +334,3 @@ function validate_split_payment_before_processing($order_id) {
         throw new Exception('Token do Mercado Pago expirado ou inválido.');
     }
 }
-
