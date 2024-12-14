@@ -13,199 +13,143 @@
  * @package MercadoPago
  * @category Core
  * @author Eli Silva (hack do Mercado Pago payments for WooCommerce)
- */
+ *
 
-// Impedir acesso direto
 if (!defined('ABSPATH')) {
     exit;
 }
-// Adicionar Gateway de Pagamento ao WCFM
+
+// Adicionar métodos de retirada ao WCFM
 add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
     $payment_methods['mercado_pago'] = 'Mercado Pago';
     return $payment_methods;
 });
 
+// Adicionar campos de configuração no painel do administrador e vendedores
 add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
     $gateway_slug = 'mercado_pago';
 
-    $payment_mercado_pago_keys = [
-        "withdrawal_{$gateway_slug}_connect" => [
-            'label' => __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace'),
-            'type' => 'html',
-            'class' => "wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_{$gateway_slug}",
-            'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_{$gateway_slug}",
-            'html' => sprintf(
-                '<a href="%s" class="button wcfm-action-btn" target="_blank">%s</a>',
-                'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/',
-                __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace')
-            ),
-        ],
-    ];
-
     if (current_user_can('administrator')) {
-        $admin_mercado_pago_keys = [
+        $admin_fields = [
             "withdrawal_{$gateway_slug}_client_id" => [
                 'label' => __('Client ID', 'wc-multivendor-marketplace'),
                 'type' => 'text',
-                'value' => get_option('mercado_pago_client_id', ''), 
-                'desc' => __('Adicione seu Client ID aqui.', 'wc-multivendor-marketplace'),
+                'value' => get_option('mercado_pago_client_id', ''),
+                'desc' => __('Insira seu Client ID.', 'wc-multivendor-marketplace'),
             ],
             "withdrawal_{$gateway_slug}_client_secret" => [
                 'label' => __('Client Secret', 'wc-multivendor-marketplace'),
                 'type' => 'text',
-                'value' => get_option('mercado_pago_client_secret', ''), 
-                'desc' => __('Adicione seu Client Secret aqui.', 'wc-multivendor-marketplace'),
-            ],
-            "withdrawal_{$gateway_slug}_redirect_url" => [
-                'label' => __('URL de Redirecionamento', 'wc-multivendor-marketplace'),
-                'type' => 'text',
-                'value' => 'https://juntoaqui.com.br/gerenciar-loja/settings/', 
-                'desc' => __('Esta é a URL de redirecionamento para o Mercado Pago.', 'wc-multivendor-marketplace'),
+                'value' => get_option('mercado_pago_client_secret', ''),
+                'desc' => __('Insira seu Client Secret.', 'wc-multivendor-marketplace'),
+            ]
+        ];
+
+        $payment_keys = array_merge($payment_keys, $admin_fields);
+    } else {
+        $vendor_fields = [
+            "withdrawal_{$gateway_slug}_connect" => [
+                'label' => __('Conectar ao Mercado Pago', 'wc-multivendor-marketplace'),
+                'type' => 'html',
+                'html' => sprintf(
+                    '<a href="https://auth.mercadopago.com/authorization?client_id=%s&response_type=code&platform_id=mp&state=%s&redirect_uri=%s" class="button wcfm-action-btn" target="_blank">%s</a>',
+                    esc_attr(get_option('mercado_pago_client_id', '')),
+                    uniqid(),
+                    esc_url(home_url('/gerenciar-loja/settings/')),
+                    __('Conectar ao Mercado Pago', 'wc-multivendor-marketplace')
+                ),
             ],
         ];
 
-        $payment_keys = array_merge($payment_keys, $admin_mercado_pago_keys);
+        $payment_keys = array_merge($payment_keys, $vendor_fields);
     }
 
-    $payment_keys = array_merge($payment_keys, $payment_mercado_pago_keys);
     return $payment_keys;
 }, 50, 2);
 
-// Adicionar Campo de Token OAuth para o Vendedor
-add_filter('wcfm_marketplace_settings_fields_billing', function ($vendor_billing_fields, $vendor_id) {
-    $gateway_slug = 'mercado_pago';
-    $vendor_data = get_user_meta($vendor_id, 'wcfmmp_profile_settings', true);
-    if (!$vendor_data) $vendor_data = [];
-
-    $mercado_pago_token = isset($vendor_data['payment'][$gateway_slug]['token']) ? esc_attr($vendor_data['payment'][$gateway_slug]['token']) : '';
-
-    $vendor_mercado_pago_billing_fields = [
-        $gateway_slug => [
-            'label' => __('Mercado Pago Token', 'wc-frontend-manager'),
-            'name' => 'payment[' . $gateway_slug . '][token]',
-            'type' => 'text',
-            'value' => $mercado_pago_token,
-            'custom_attributes' => ['readonly' => 'readonly'],
-            'desc' => sprintf('<a href="%s" target="_blank">%s</a>', 
-                'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/', 
-                __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace')),
-        ],
-    ];
-
-    return array_merge($vendor_billing_fields, $vendor_mercado_pago_billing_fields);
-}, 50, 2);
-
-// Função para Refresh Token
-function refresh_mercado_pago_token($client_id, $client_secret, $refresh_token) {
-    $url = 'https://api.mercadopago.com/oauth/token';
-    $data = [
-        'grant_type' => 'refresh_token',
-        'client_id' => $client_id,
-        'client_secret' => $client_secret,
-        'refresh_token' => $refresh_token,
-    ];
-
-    $response = wp_remote_post($url, [
-        'body' => $data,
-        'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
-    ]);
-
-    if (is_wp_error($response)) {
-        return false;
-    }
-
-    $response_body = json_decode(wp_remote_retrieve_body($response), true);
-    if (isset($response_body['access_token'])) {
-        update_option('mercado_pago_access_token', $response_body['access_token']);
-        update_option('mercado_pago_refresh_token', $response_body['refresh_token']);
-        return true;
-    }
-
-    return false;
-}
-
-// Exemplo de uso do refresh token
-add_action('init', function() {
+// Atualizar tokens com refresh automático
+function refresh_mercado_pago_token() {
     $client_id = get_option('mercado_pago_client_id');
     $client_secret = get_option('mercado_pago_client_secret');
     $refresh_token = get_option('mercado_pago_refresh_token');
 
-    if ($refresh_token) {
-        refresh_mercado_pago_token($client_id, $client_secret, $refresh_token);
-    }
-});
-
-// Implementação do Split de Pagamento
-class WCFMmp_Gateway_Mercado_Pago {
-    public function process_payment($withdrawal_id, $vendor_id, $withdraw_amount, $withdraw_charges, $transaction_mode = 'auto') {
-        global $WCFMmp;
-
-        $this->vendor_id = $vendor_id;
-        $this->withdraw_amount = $withdraw_amount;
-        $this->currency = get_woocommerce_currency();
-        $this->transaction_mode = $transaction_mode;
-        $this->receiver_token = get_user_meta($this->vendor_id, 'wcfmmp_profile_settings', true)['payment']['mercado_pago']['token'];
-
-        if (empty($this->receiver_token)) {
-            return false;
-        }
-
-        $url = 'https://api.mercadopago.com/v1/payments';
-        $headers = [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->receiver_token
-        ];
-
-        // Defina os valores para o split de pagamento
-        $marketplace_percentage = 0.1; // 10% para o marketplace
-        $vendor_amount = $this->withdraw_amount * (1 - $marketplace_percentage);
-        $marketplace_amount = $this->withdraw_amount * $marketplace_percentage;
-
-        $body = [
-            'transaction_amount' => $this->withdraw_amount,
-            'currency_id' => $this->currency,
-            'description' => 'Retirada de fundos do vendedor',
-            'payer' => [
-                'email' => get_user_meta($this->vendor_id, 'billing_email', true)
-            ],
-            'additional_info' => [
-                'items' => [
-                    [
-                        'title' => 'Venda no Marketplace',
-                        'quantity' => 1,
-                        'unit_price' => $this->withdraw_amount,
-                    ]
-                ],
-                'split' => [
-                    [
-                        'recipient_id' => 'RECIPIENT_ID_DO_VENDEDOR', // ID do vendedor
-                        'amount' => $vendor_amount,
-                    ],
-                    [
-                        'recipient_id' => 'RECIPIENT_ID_DO_MARKETPLACE', // ID do marketplace
-                        'amount' => $marketplace_amount,
-                    ]
-                ]
-            ]
-        ];
-
+    if ($client_id && $client_secret && $refresh_token) {
+        $url = 'https://api.mercadopago.com/oauth/token';
         $response = wp_remote_post($url, [
-            'headers' => $headers,
-            'body' => json_encode($body)
+            'body' => [
+                'grant_type' => 'refresh_token',
+                'client_id' => $client_id,
+                'client_secret' => $client_secret,
+                'refresh_token' => $refresh_token,
+            ],
+            'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
         ]);
 
-        if (is_wp_error($response)) {
-            return false;
+        if (!is_wp_error($response)) {
+            $data = json_decode(wp_remote_retrieve_body($response), true);
+
+            if (!empty($data['access_token'])) {
+                update_option('mercado_pago_access_token', $data['access_token']);
+                update_option('mercado_pago_refresh_token', $data['refresh_token']);
+            }
         }
-
-        $response_body = wp_remote_retrieve_body($response);
-        $response_data = json_decode($response_body, true);
-
-        if (isset($response_data['status']) && $response_data['status'] == 'approved') {
-            $WCFMmp->withdrawal->add_withdrawal_payment_success($withdrawal_id);
-            return true;
-        }
-
-        return false;
     }
 }
+
+// Agendar refresh token a cada 175 dias
+if (!wp_next_scheduled('mercado_pago_refresh_token_event')) {
+    wp_schedule_event(time(), 'daily', 'mercado_pago_refresh_token_event');
+}
+add_action('mercado_pago_refresh_token_event', 'refresh_mercado_pago_token');
+
+// Implementar lógica de split de pagamento (detecção automática de plugins Mercado Pago)
+add_action('woocommerce_payment_complete', function ($order_id) {
+    $order = wc_get_order($order_id);
+
+    if (!$order) {
+        return;
+    }
+
+    $payment_method = $order->get_payment_method();
+
+    if (strpos($payment_method, 'mercado_pago') !== false) {
+        // Implementar lógica para split de pagamento usando os tokens dos vendedores
+        $vendor_data = get_post_meta($order_id, '_wcfmmp_order_data', true);
+
+        if (!empty($vendor_data)) {
+            foreach ($vendor_data as $vendor_id => $details) {
+                $vendor_token = get_user_meta($vendor_id, 'mercado_pago_token', true);
+
+                if ($vendor_token) {
+                    // Enviar pagamento dividido
+                    $split_payment_data = [
+                        'access_token' => $vendor_token,
+                        'amount' => $details['commission_amount'],
+                        'receiver' => $details['vendor_email'],
+                        'metadata' => [
+                            'order_id' => $order_id,
+                            'vendor_id' => $vendor_id,
+                        ],
+                    ];
+
+                    $response = wp_remote_post('https://api.mercadopago.com/v1/payments', [
+                        'body' => json_encode($split_payment_data),
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $vendor_token,
+                            'Content-Type' => 'application/json',
+                        ],
+                    ]);
+
+                    if (is_wp_error($response)) {
+                        error_log('Erro ao enviar pagamento dividido: ' . $response->get_error_message());
+                    } else {
+                        $response_data = json_decode(wp_remote_retrieve_body($response), true);
+                        if (empty($response_data['id'])) {
+                            error_log('Erro na resposta do pagamento dividido: ' . wp_remote_retrieve_body($response));
+                        }
+                    }
+                }
+            }
+        }
+    }
+});
