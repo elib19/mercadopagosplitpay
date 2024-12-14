@@ -19,12 +19,43 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+// Verificar se WooCommerce e WCFM estão ativos
+function check_required_plugins() {
+    if ( ! is_plugin_active( 'woocommerce/woocommerce.php' ) ) {
+        // WooCommerce não está ativo
+        deactivate_plugins( plugin_basename( __FILE__ ) );
+        add_action( 'admin_notices', 'woocommerce_plugin_not_active_notice' );
+        return;
+    }
+
+    if ( ! is_plugin_active( 'wc-frontend-manager/wcfm.php' ) ) {
+        // WCFM não está ativo
+        deactivate_plugins( plugin_basename( __FILE__ ) );
+        add_action( 'admin_notices', 'wcfm_plugin_not_active_notice' );
+        return;
+    }
+}
+
+add_action('admin_init', 'check_required_plugins');
+
+// Exibir aviso se o WooCommerce não estiver ativo
+function woocommerce_plugin_not_active_notice() {
+    echo '<div class="error"><p><strong>Mercado Pago Split (WooCommerce + WCFM)</strong> requer o plugin WooCommerce. Por favor, instale e ative o WooCommerce.</p></div>';
+}
+
+// Exibir aviso se o WCFM não estiver ativo
+function wcfm_plugin_not_active_notice() {
+    echo '<div class="error"><p><strong>Mercado Pago Split (WooCommerce + WCFM)</strong> requer o plugin WCFM Marketplace. Por favor, instale e ative o WCFM Marketplace.</p></div>';
+}
+
 // Adicionar Gateway de Pagamento ao WCFM
 add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
     $payment_methods['mercado_pago'] = 'Mercado Pago';
     return $payment_methods;
 });
 
+// Adicionar os campos do Mercado Pago ao WCFM
 add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
     $gateway_slug = 'mercado_pago';
 
