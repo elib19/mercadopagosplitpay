@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
  * Plugin URI: https://juntoaqui.com.br
- * Description: Configure the payment options and accept payments with cards, ticket, and money of Mercado Pago account.
+ * Description: Configure the payment options and accept payments with cards, ticket and money of Mercado Pago account.
  * Version: 1.0.0
  * Author: Eli Silva (hack do Mercado Pago payments for WooCommerce)
  * Author URI: https://juntoaqui.com.br
@@ -13,7 +13,7 @@
  * WC tested up to: 4.7.0
  * @package MercadoPago
  * @category Core
- * @author Eli Silva (hack do Mercado Pago payments for WooCommerce)
+ * @author Alex Lana (hack do Mercado Pago payments for WooCommerce)
  */
 
 // Impedir acesso direto
@@ -21,14 +21,25 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Adicionar Gateway de Pagamento ao WCFM
- */
+// Função para gerar o link de autenticação do Mercado Pago
+function get_mercado_pago_auth_link() {
+    $client_id = get_option('mercado_pago_client_id');
+    $redirect_uri = get_option('mercado_pago_redirect_uri');
+
+    if (!$client_id || !$redirect_uri) {
+        return false;
+    }
+
+    return "https://auth.mercadopago.com.br/authorization?response_type=code&client_id={$client_id}&redirect_uri={$redirect_uri}";
+}
+
+// Adicionar Gateway de Pagamento ao WCFM
 add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
     $payment_methods['mercado_pago'] = 'Mercado Pago';
     return $payment_methods;
 });
 
+// Adicionar campos de configuração do Mercado Pago no WCFM
 add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
     $gateway_slug = 'mercado_pago';
 
@@ -40,7 +51,7 @@ add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function 
             'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_{$gateway_slug}",
             'html' => sprintf(
                 '<a href="%s" class="button wcfm-action-btn" target="_blank">%s</a>',
-                'https://auth.mercadopago.com/authorization?client_id=YOUR_CLIENT_ID&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/',
+                get_mercado_pago_auth_link(),
                 __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace')
             ),
         ],
@@ -72,14 +83,13 @@ add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function 
                 'value' => get_option('mercado_pago_refresh_token', ''), 
                 'desc' => __('Adicione seu Refresh Token aqui.', 'wc-multivendor-marketplace'),
             ],
-            "withdrawal_{$gateway_slug}_access_token" => [
-                'label' => __('Access Token', 'wc-multivendor-marketplace'),
-                'type' ```php
-                => 'text',
+            "withdrawal_{$gateway _pago}_redirect_uri" => [
+                'label' => __('Redirect URI', 'wc-multivendor-marketplace'),
+                'type' => 'text',
                 'class' => "wcfm_ele withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
                 'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
-                'value' => get_option('mercado_pago_access_token', ''), 
-                'desc' => __('Adicione seu Access Token aqui.', 'wc-multivendor-marketplace'),
+                'value' => get_option('mercado_pago_redirect_uri', ''), 
+                'desc' => __('Adicione sua Redirect URI aqui.', 'wc-multivendor-marketplace'),
             ],
         ];
 
@@ -89,65 +99,78 @@ add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function 
     return array_merge($payment_keys, $payment_mercado_pago_keys);
 });
 
-/**
- * Função para obter um novo Access Token usando o Refresh Token
- */
-function get_new_access_token($refresh_token) {
-    $client_id = get_option('mercado_pago_client_id');
-    $client_secret = get_option('mercado_pago_client_secret');
+// Classe principal do gateway de pagamento
+class WCFMmp_Gateway_Mercado_Pago {
+    public function process_payment($withdrawal_id, $vendor_id, $withdraw_amount, $withdraw_charges, $transaction_mode = 'auto') {
+        global $WCFMmp;
 
-    $response = wp_remote_post('https://api.mercadopago.com/oauth/token', [
-        'body' => [
-            'grant_type' => 'refresh_token',
-            'client_id' => $client_id,
-            'client_secret' => $client_secret,
-            'refresh_token' => $refresh_token,
-        ],
-    ]);
+        // Obter o token OAuth do vendedor
+        $this->vendor_id = $vendor_id;
+        $this->withdraw_amount = $withdraw_amount;
+        $this->currency = get_woocommerce_currency();
+        $this->transaction_mode = $transaction_mode;
+        $this->receiver_token = get_user_meta($this->vendor_id, 'wcfmmp_profile_settings', true)['payment']['mercado_pago']['token'];
 
-    if (is_wp_error($response)) {
-        return false;
-    }
-
-    $body = json_decode(wp_remote_retrieve_body($response), true);
-    if (isset($body['access_token'])) {
-        update_option('mercado_pago_access_token', $body['access_token']);
-        return $body['access_token'];
-    }
-
-    return false;
-}
-
-/**
- * Exemplo de uso do Refresh Token
- */
-function process_payment($order_id) {
-    $order = wc_get_order($order_id);
-    $access_token = get_option('mercado_pago_access_token');
-    $refresh_token = get_option('mercado_pago_refresh_token');
-
-    // Verifica se o Access Token está expirado e tenta renová-lo
-    if (is_token_expired($access_token)) {
-        $new_access_token = get_new_access_token($refresh_token);
-        if ($new_access_token) {
-            $access_token = $new_access_token;
-        } else {
-            // Lidar com erro de renovação do token
-            return;
+        if (empty($this->receiver_token)) {
+            return false; // Se o token não foi configurado, não pode processar o pagamento
         }
+
+        // Configuração da requisição API Mercado Pago
+        $url = 'https://api.mercadopago.com/v1/payments';
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->receiver_token
+        ];
+
+        // Definindo a lógica de split
+        $split_data = [
+            [
+                'recipient_id' => get_user_meta($this->vendor_id, '_mercado_pago_account_id', true), // ID da conta do vendedor
+                'amount' => $this->withdraw_amount * 0.90 // 90% para o vendedor
+            ],
+            [
+                'recipient_id' => 'MARKETPLACE_ACCOUNT_ID', // ID da conta do marketplace
+                'amount' => $this->withdraw_amount * 0.10 // 10% para o marketplace
+            ]
+        ];
+
+        $body = [
+            'transaction_amount' => $this->withdraw_amount,
+            'currency_id' => $this->currency,
+            'description' => 'Retirada de fundos do vendedor',
+            'payment_method_id' => 'mercadopago',
+            'payer' => [
+                'email' => get_user_meta($this->vendor_id, 'billing_email', true)
+            ],
+            'additional_info' => [
+                'split' => $split_data
+            ]
+        ];
+
+        // Executar a requisição
+        $response = wp_remote_post($url, [
+            'headers' => $headers,
+            'body' => json_encode($body)
+        ]);
+
+        if (is_wp_error($response)) {
+            return false; // Falha na requisição
+        }
+
+        $response_body = wp_remote_retrieve_body($response);
+        $response_data = json_decode($response_body, true);
+
+        if (isset($response_data['status']) && $response_data['status'] == 'approved') {
+            // Registrar o pagamento
+            $WCFMmp->withdrawal->add_withdrawal_payment_success($withdrawal_id);
+            return true;
+        }
+
+        return false; // Falha no pagamento
     }
-
-    // Processar o pagamento com o Access Token válido
-    // Aqui você implementaria a lógica para processar o pagamento usando a API do Mercado Pago
 }
 
-/**
- * Função para verificar se o Access Token está expirado
- */
-function is_token_expired($access_token) {
-    // Implementar lógica para verificar se o token está expirado
-    // Isso pode incluir verificar a data de expiração armazenada ou fazer uma chamada à API
-    return false; // Placeholder
-}
-`` ```php
-}
+// Ativar o plugin
+add_action('plugins_loaded', function() {
+    // Código para inicializar o plugin
+});
