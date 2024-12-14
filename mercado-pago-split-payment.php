@@ -8,12 +8,11 @@
  * Author: Eli Silva (hack do Mercado Pago payments for WooCommerce)
  * Author URI: https://juntoaqui.com.br
  * Text Domain: woocommerce-mercadopago-split
- * Domain Path: /i18n/languages/
  * WC requires at least: 3.0.0
  * WC tested up to: 4.7.0
  * @package MercadoPago
  * @category Core
- * @author Alex Lana (hack do Mercado Pago payments for WooCommerce)
+ * @author Eli Silva (hack do Mercado Pago payments for WooCommerce)
  */
 
 // Impedir acesso direto
