@@ -49,7 +49,7 @@ $pedido = [
             'unit_price' => 75.76
         ]
     ],
-    'marketplace_fee' => 10, // Comissão do Marketplace (exemplo de 10%)
+    'marketplace_fee' => 10, // Comissão do Marketplace (exemplo de 10%),
 ];
 
 // Dados do comprador
