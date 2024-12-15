@@ -147,16 +147,25 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 ]);
 
 $response = curl_exec($ch);
+$error = curl_error($ch);
 curl_close($ch);
 
-// Decodificando a resposta do Mercado Pago
-$response_data = json_decode($response, true);
-
-// Exibindo o link de pagamento
-if (isset($response_data['init_point'])) {
-    echo 'Acesse o link de pagamento: ' . $response_data['init_point'];
+// Verificando a resposta e tratando erros
+if ($error) {
+    // Se houver erro no curl
+    error_log('Erro de cURL: ' . $error);
+    echo 'Erro ao comunicar com o Mercado Pago.';
 } else {
-    echo 'Erro ao gerar o link de pagamento';
+    $response_data = json_decode($response, true);
+
+    if (isset($response_data['init_point'])) {
+        // Se o link de pagamento foi gerado com sucesso
+        echo 'Acesse o link de pagamento: ' . $response_data['init_point'];
+    } else {
+        // Se não houver 'init_point' na resposta
+        error_log('Erro ao gerar o link de pagamento: ' . print_r($response_data, true));
+        echo 'Erro ao gerar o link de pagamento. Verifique os logs para mais detalhes.';
+    }
 }
 
 // Adicionar Campo de Token OAuth para o Vendedor
