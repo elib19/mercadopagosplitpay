@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
  * Plugin URI: https://juntoaqui.com.br
@@ -33,6 +32,59 @@ function get_mercado_pago_credentials($is_admin = false) {
         'access_token' => $access_token
     ];
 }
+
+// Adicionar Gateway de Pagamento ao WCFM
+add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
+    $payment_methods['mercado_pago'] = 'Mercado Pago';
+    return $payment_methods;
+});
+
+// Adicionar Campos de Configuração de OAuth do Mercado Pago para o Administrador
+add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
+    $gateway_slug = 'mercado_pago';
+
+    if (current_user_can('administrator')) {
+        $admin_mercado_pago_keys = [
+            "withdrawal_{$gateway_slug}_client_id" => [
+                'label' => __('Client ID', 'wc-multivendor-marketplace'),
+                'type' => 'text',
+                'class' => "wcfm_ele withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'value' => get_option('mercado_pago_client_id', ''), 
+                'desc' => __('Adicione seu Client ID aqui.', 'wc-multivendor-marketplace'),
+            ],
+            "withdrawal_{$gateway_slug}_client_secret" => [
+                'label' => __('Client Secret', 'wc-multivendor-marketplace'),
+                'type' => 'text',
+                'class' => "wcfm_ele withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'value' => get_option('mercado_pago_client_secret', ''), 
+                'desc' => __('Adicione seu Client Secret aqui.', 'wc-multivendor-marketplace'),
+            ],
+            "withdrawal_{$gateway_slug}_access_token" => [
+                'label' => __('Access Token', 'wc-multivendor-marketplace'),
+                'type' => 'text',
+                'class' => "wcfm_ele withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'value' => get_option('mercado_pago_access_token', ''), 
+                'desc' => __('Adicione seu Access Token aqui.', 'wc-multivendor-marketplace'),
+            ],
+            "withdrawal_{$gateway_slug}_redirect_url" => [
+                'label' => __('URL de Redirecionamento', 'wc-multivendor-marketplace'),
+                'type' => 'text',
+                'class' => "wcfm_ele withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'label_class' => "wcfm_title withdrawal_mode withdrawal_mode_admin withdrawal_mode_{$gateway_slug}",
+                'value' => 'https://juntoaqui.com.br/gerenciar-loja/settings/', 
+                'desc' => __('Esta é a URL de redirecionamento para o Mercado Pago.', 'wc-multivendor-marketplace'),
+            ],
+        ];
+
+        $payment_keys = array_merge ```php
+($payment_keys, $admin_mercado_pago_keys);
+    }
+
+    return $payment_keys;
+}, 50, 2);
 
 // Configurações de Mercado Pago
 $credentials_admin = get_mercado_pago_credentials(true); // Para o administrador
@@ -108,30 +160,6 @@ if (isset($response_data['init_point'])) {
     echo 'Erro ao gerar o link de pagamento';
 }
 
-// Adicionar Gateway de Pagamento ao WCFM
-add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
-    $payment_methods['mercado_pago'] = 'Mercado Pago';
-    return $payment_methods;
-});
-
-// Adicionar Campos de Configuração de OAuth do Mercado Pago para o Administrador
-add_action('wcfm_marketplace_settings_fields', function ($settings_fields) {
-    // Exibir campos para configuração manual de credenciais no painel do administrador
-    $settings_fields['mercado_pago_public_key'] = [
-        'label' => 'Public Key do Mercado Pago',
-        'type' => 'text',
-        'value' => get_option('mercado_pago_public_key')
-    ];
-
-    $settings_fields['mercado_pago_access_token'] = [
-        'label' => 'Access Token do Mercado Pago',
-        'type' => 'text',
-        'value' => get_option('mercado_pago_access_token')
-    ];
-
-    return $settings_fields;
-}, 10, 1);
-
 // Adicionar Campo de Token OAuth para o Vendedor
 add_filter('wcfm_marketplace_settings_fields_billing', function ($vendor_billing_fields, $vendor_id) {
     $gateway_slug = 'mercado_pago';
@@ -150,7 +178,7 @@ add_filter('wcfm_marketplace_settings_fields_billing', function ($vendor_billing
             'value' => $mercado_pago_token,
             'custom_attributes' => array('readonly' => 'readonly'), // Token gerado via OAuth, não editável pelo vendedor
             'desc' => sprintf('<a href="%s" target="_blank">%s</a>', 
-                'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/', 
+                'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri =https://juntoaqui.com.br/gerenciar-loja/settings/', 
                 __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace'))
         )
     );
@@ -177,9 +205,13 @@ class WCFMmp_Gateway_Mercado_Pago {
             return;
         }
 
+        // Calcular a comissão do Marketplace (supondo 10% de comissão)
+        $marketplace_fee = $this->withdraw_amount * 0.10;
+        $vendor_amount = $this->withdraw_amount - $marketplace_fee;
+
         // Chamada à API do Mercado Pago com o token
         $payment_data = [
-            'transaction_amount' => $this->withdraw_amount,
+            'transaction_amount' => $vendor_amount,
             'description' => 'Pagamento de Retirada',
             'payer' => [
                 'email' => $this->receiver_token, // Utilizando o token como identificador do payer
@@ -190,7 +222,9 @@ class WCFMmp_Gateway_Mercado_Pago {
         $response = $this->call_mercado_pago_api($payment_data);
 
         if ($response['status'] == 'approved') {
+            // Registrar a comissão do marketplace
             $this->message[] = __('Pagamento processado com sucesso via Mercado Pago.', 'wc-multivendor-marketplace');
+            $this->process_marketplace_fee($marketplace_fee, $withdrawal_id);  // Processar a comissão do marketplace
         } else {
             $this->message[] = __('Erro ao processar pagamento via Mercado Pago.', 'wc-multivendor-marketplace');
         }
@@ -231,5 +265,19 @@ class WCFMmp_Gateway_Mercado_Pago {
         // Converter a resposta em array e retornar
         return json_decode($response, true);
     }
+
+    // Função para processar a comissão do marketplace
+    private function process_marketplace_fee($marketplace_fee, $withdrawal_id) {
+        // Lógica para processar a comissão do marketplace, por exemplo:
+        // Registrar no banco de dados ou realizar outra ação
+        // Este exemplo apenas loga o valor da comissão
+        error_log("Comissão do marketplace: " . $marketplace_fee);
+        
+        // Aqui você pode adicionar um código para registrar a comissão ou realizar uma transferência interna.
+    }
 }
+
+// Exemplo de uso para processar pagamento
+$mercado_pago_gateway = new WCFMmp_Gateway_Mercado_Pago();
+$mercado_pago_gateway->process_payment($withdrawal_id, $vendor_id, $withdraw_amount, $withdraw_charges);
 ?>
