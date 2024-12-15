@@ -4,7 +4,7 @@
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
  * Plugin URI: https://juntoaqui.com.br
  * Description: Configure payment options and accept payments with cards, ticket, and Mercado Pago account.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Eli Silva
  * Author URI: https://juntoaqui.com.br
  * Text Domain: woocommerce-mercadopago-split
@@ -16,9 +16,27 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
+// Função para recuperar as credenciais do Mercado Pago
+function get_mercado_pago_credentials($is_admin = false) {
+    if ($is_admin) {
+        // Recupera as credenciais do administrador (configuração manual)
+        $public_key = get_option('mercado_pago_public_key'); // Chave pública do administrador
+        $access_token = get_option('mercado_pago_access_token'); // Token de acesso do administrador
+    } else {
+        // Recupera as credenciais do vendedor
+        $public_key = get_user_meta(get_current_user_id(), 'mercado_pago_public_key', true);
+        $access_token = get_user_meta(get_current_user_id(), 'mercado_pago_access_token', true);
+    }
+
+    return [
+        'public_key' => $public_key,
+        'access_token' => $access_token
+    ];
+}
+
 // Configurações de Mercado Pago
-$access_token_admin = 'SEU_ACCESS_TOKEN'; // Token de acesso do Marketplace (Administrador)
-$access_token_vendedor = 'ACCESS_TOKEN_VENDEDOR'; // Token de acesso do vendedor (obtido via OAuth)
+$credentials_admin = get_mercado_pago_credentials(true); // Para o administrador
+$access_token_admin = $credentials_admin['access_token']; // Token do administrador
 
 // Dados do pedido
 $pedido = [
@@ -96,27 +114,23 @@ add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_meth
     return $payment_methods;
 });
 
-// Adicionar Campos de Configuração de OAuth do Mercado Pago para o Administrador e Vendedor
-add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
-    $gateway_slug = 'mercado_pago';
+// Adicionar Campos de Configuração de OAuth do Mercado Pago para o Administrador
+add_action('wcfm_marketplace_settings_fields', function ($settings_fields) {
+    // Exibir campos para configuração manual de credenciais no painel do administrador
+    $settings_fields['mercado_pago_public_key'] = [
+        'label' => 'Public Key do Mercado Pago',
+        'type' => 'text',
+        'value' => get_option('mercado_pago_public_key')
+    ];
 
-    // Adicionar link para configurar OAuth
-    $payment_mercado_pago_keys = array(
-        "withdrawal_" . $gateway_slug . "_connect" => array(
-            'label' => __('Conectar ao Mercado Pago', 'wc-multivendor-marketplace'),
-            'type' => 'html',
-            'class' => 'wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug,
-            'label_class' => 'wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug,
-            'html' => sprintf(
-                '<a href="%s" target="_blank">%s</a>',
-                'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/',
-                __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace')
-            )
-        )
-    );
-    $payment_keys = array_merge($payment_keys, $payment_mercado_pago_keys);
-    return $payment_keys;
-}, 50, 2);
+    $settings_fields['mercado_pago_access_token'] = [
+        'label' => 'Access Token do Mercado Pago',
+        'type' => 'text',
+        'value' => get_option('mercado_pago_access_token')
+    ];
+
+    return $settings_fields;
+}, 10, 1);
 
 // Adicionar Campo de Token OAuth para o Vendedor
 add_filter('wcfm_marketplace_settings_fields_billing', function ($vendor_billing_fields, $vendor_id) {
