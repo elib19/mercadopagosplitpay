@@ -68,82 +68,67 @@ add_filter('wcfm_marketplace_settings_fields_billing', function ($vendor_billing
     return $vendor_billing_fields;
 }, 50, 2);
 
-// Classe para processar pagamentos de retiradas via Mercado Pago
-class WCFMmp_Gateway_Mercado_Pago {
-    public function process_payment($withdrawal_id, $vendor_id, $withdraw_amount, $withdraw_charges, $transaction_mode = 'auto') {
-        global $WCFMmp;
+// Função para criar a preferência de pagamento com divisão automática
+function mercado_pago_create_preference($pedido, $payer_email, $recipient_id_vendedor, $recipient_id_admin) {
+    $access_token_admin = ''; // Token de acesso do Marketplace (Administrador)
 
-        // Obter o token OAuth do vendedor
-        $this->vendor_id = $vendor_id;
-        $this->withdraw_amount = $withdraw_amount;
-        $this->currency = get_woocommerce_currency();
-        $this->transaction_mode = $transaction_mode;
-        $this->receiver_token = get_user_meta($this->vendor_id, 'payment[mercado_pago][token]', true);
-
-        // Verificar se o token é válido
-        if (!$this->receiver_token) {
-            $this->message[] = __('Token OAuth do Mercado Pago não encontrado.', 'wc-multivendor-marketplace');
-            return;
-        }
-
-        // Chamada à API do Mercado Pago com o token
-        $payment_data = [
-            'transaction_amount' => $this->withdraw_amount,
-            'description' => 'Pagamento de Retirada',
-            'payer' => [
-                'email' => $this->receiver_token, // Utilizando o token como identificador do payer
+    // Dados do pedido
+    $data = [
+        'items' => $pedido['items'],
+        'payer' => [
+            'email' => $payer_email,
+        ],
+        'back_urls' => [
+            'success' => 'URL_DE_SUCESSO',
+            'failure' => 'URL_DE_FALHA',
+            'pending' => 'URL_DE_PENDING'
+        ],
+        'split' => [
+            [
+                'recipient_id' => $recipient_id_vendedor,
+                'amount' => $pedido['valor_vendedor'], // Valor que o vendedor vai receber
+                'application_fee' => $pedido['comissao_marketplace'] // Comissão do marketplace
+            ],
+            [
+                'recipient_id' => $recipient_id_admin,
+                'amount' => $pedido['comissao_marketplace'], // Comissão do marketplace
+                'application_fee' => 0 // Comissão adicional do marketplace
             ]
-        ];
+        ],
+    ];
 
-        // Implementar a lógica de pagamento com a API do Mercado Pago usando o token OAuth
-        $response = $this->call_mercado_pago_api($payment_data);
+    // Chamada à API do Mercado Pago
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, "https://api.mercadopago.com/checkout/preferences?access_token=" . $access_token_admin);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    
+    $response = curl_exec($ch);
+    curl_close($ch);
 
-        if ($response['status'] == 'approved') {
-            $this->message[] = __('Pagamento processado com sucesso via Mercado Pago.', 'wc-multivendor-marketplace');
-        } else {
-            $this->message[] = __('Erro ao processar pagamento via Mercado Pago.', 'wc-multivendor-marketplace');
-        }
-    }
-
-    // Função para chamar a API do Mercado Pago
-    private function call_mercado_pago_api($payment_data) {
-        // URL da API do Mercado Pago
-        $url = 'https://api.mercadopago.com/v1/payments';
-
-        // Parâmetros da requisição
-        $headers = [
-            'Accept: application/json',
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->receiver_token // Usando o token OAuth do vendedor
-        ];
-
-        // Requisição cURL
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payment_data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-        // Executar cURL
-        $response = curl_exec($ch);
-
-        // Verificar se houve erro na requisição
-        if(curl_errno($ch)) {
-            $this->message[] = __('Erro na requisição cURL: ' . curl_error($ch), 'wc-multivendor-marketplace');
-            curl_close($ch);
-            return;
-        }
-
-        curl_close($ch);
-
-        // Converter a resposta em array e retornar
-        return json_decode($response, true);
-    }
+    return json_decode($response);
 }
 
-// Inicializa o plugin
-function mercado_pago_wcfm_init() {
-    // Aqui você pode adicionar inicializações adicionais, se necessário
-}
-add_action('plugins_loaded', 'mercado_pago_wcfm_init');
+// Exemplo de uso da função
+add_action('woocommerce_thankyou', function($order_id) {
+    $order = wc_get_order($order_id);
+    $pedido = [
+        'items' => [
+            // Adicione os itens do pedido aqui
+        ],
+        'valor_vendedor' => $order->get_total() * 0.9, // Exemplo de cálculo
+        'comissao_marketplace' => $order->get_total() * 0.1 // Exemplo de cálculo
+    ];
+    $payer_email = $order->get_billing_email();
+    $recipient_id_vendedor = 'RECIPIENT_ID_VENDEDOR'; // ID do vendedor
+    $recipient_id_admin = 'RECIPIENT_ID_ADMIN'; // ID do administrador
+
+    $preference = mercado_pago_create_preference($pedido, $payer_email, $recipient_id_vendedor, $recipient_id_admin);
+    // Aqui você pode redirecionar o usuário para a URL de pagamento
+});
+
+// Fim do código do plugin
