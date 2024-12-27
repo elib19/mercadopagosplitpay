@@ -10,14 +10,36 @@
  * WC requires at least: 3.0.0
  * WC tested up to: 4.7.0
  */
-// Evita acesso direto ao arquivo
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Configurações de Mercado Pago
-$access_token_admin = ''; // Token de acesso do Marketplace (Administrador)
-$access_token_vendedor = 'ACCESS_TOKEN_VENDEDOR'; // Token de acesso do vendedor (obtido via OAuth)
+// Adicionar página de configurações para o administrador
+add_action('admin_menu', function() {
+    add_menu_page('Configurações Mercado Pago', 'Configurações Mercado Pago', 'manage_options', 'mercado-pago-settings', 'mercado_pago_settings_page');
+});
+
+function mercado_pago_settings_page() {
+    if (isset($_POST['save_credentials'])) {
+        update_option('mercado_pago_admin_access_token', sanitize_text_field($_POST['access_token']));
+        echo '<div class="updated"><p>Credenciais salvas com sucesso!</p></div>';
+    }
+    $access_token_admin = get_option('mercado_pago_admin_access_token', '');
+    ?>
+    <div class="wrap">
+        <h1>Configurações do Mercado Pago</h1>
+        <form method="post">
+            <label for="access_token">Token de Acesso do Administrador:</label>
+            <input type="text" name="access_token" id="access_token" value="<?php echo esc_attr($access_token_admin); ?>" required>
+            <br><br>
+            <input type="submit" name="save_credentials" class="button button-primary" value="Salvar Credenciais">
+        </form>
+    </div>
+    <?php
+}
+
+// Obter o token de acesso do administrador
+$access_token_admin = get_option('mercado_pago_admin_access_token', '');
 
 // Dados do pedido
 $pedido = [
@@ -30,13 +52,13 @@ $pedido = [
             'unit_price' => 75.76
         ]
     ],
-    'marketplace_fee' => 10, // Comissão do Marketplace (exemplo de 10%)
+    'marketplace_fee' => 10,
 ];
 
 // Dados do comprador
-$payer_email = 'comprador@example.com'; // E-mail do comprador
+$payer_email = 'comprador@example.com';
 
-// Endpoint de criação de preferência para Checkout Pro ou Transparente
+// Endpoint de criação de preferência
 $url = 'https://api.mercadopago.com/checkout/preferences?access_token=' . $access_token_admin;
 
 // Definindo os parâmetros do pagamento com Split de Pagamento
@@ -45,20 +67,20 @@ $data = [
     'marketplace_fee' => $pedido['marketplace_fee'],
     'payer_email' => $payer_email,
     'back_urls' => [
-        'success' => 'URL_DE_SUCESSO', // URL de sucesso após pagamento
-        'failure' => 'URL_DE_FALHA', // URL de falha
-        'pending' => 'URL_DE_PENDING' // URL para quando o pagamento estiver pendente
+        'success' => 'URL_DE_SUCESSO',
+        'failure' => 'URL_DE_FALHA',
+        'pending' => 'URL_DE_PENDING'
     ],
     'split' => [
         [
-            'recipient_id' => 'RECIPIENT_ID_VENDEDOR', // ID do vendedor obtido via OAuth
-            'amount' => 68.18, // Valor que o vendedor vai receber após a comissão
-            'application_fee' => 7.58 // Comissão do marketplace sobre o valor
+            'recipient_id' => 'RECIPIENT_ID_VENDEDOR',
+            'amount' => 68.18,
+            'application_fee' => 7.58
         ],
         [
-            'recipient_id' => 'RECIPIENT_ID_ADMIN', // ID do marketplace
-            'amount' => 7.58, // Comissão do marketplace (exemplo: 10%)
-            'application_fee' => 0 // Comissão adicional do marketplace
+            'recipient_id' => 'RECIPIENT_ID_ADMIN',
+            'amount' => 7.58,
+            'application_fee' => 0
         ]
     ],
 ];
@@ -71,7 +93,7 @@ $ch = curl_init($url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
+curl_setopt($ ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
     'Authorization: Bearer ' . $access_token_admin
 ]);
@@ -95,25 +117,27 @@ add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_meth
     return $payment_methods;
 });
 
-// Adicionar Campos de Configuração de OAuth do Mercado Pago para o Administrador e Vendedor
+// Adicionar Campos de Configuração de OAuth do Mercado Pago para o Vendedor
 add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function ($payment_keys, $wcfm_withdrawal_options) {
     $gateway_slug = 'mercado_pago';
 
-    // Adicionar link para configurar OAuth
-    $payment_mercado_pago_keys = array(
-        "withdrawal_" . $gateway_slug . "_connect" => array(
-            'label' => __('Conectar ao Mercado Pago', 'wc-multivendor-marketplace'),
-            'type' => 'html',
-            'class' => 'wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug,
-            'label_class' => 'wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug,
-            'html' => sprintf(
-                '<a href="%s" target="_blank">%s</a>',
-                'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/',
-                __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace')
+    // Adicionar link para configurar OAuth apenas para o vendedor
+    if (current_user_can('vendor')) {
+        $payment_mercado_pago_keys = array(
+            "withdrawal_" . $gateway_slug . "_connect" => array(
+                'label' => __('Conectar ao Mercado Pago', 'wc-multivendor-marketplace'),
+                'type' => 'html',
+                'class' => 'wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug,
+                'label_class' => 'wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug,
+                'html' => sprintf(
+                    '<a href="%s" target="_blank">%s</a>',
+                    'https://auth.mercadopago.com/authorization?client_id=6591097965975471&response_type=code&platform_id=mp&state=' . uniqid() . '&redirect_uri=https://juntoaqui.com.br/gerenciar-loja/settings/',
+                    __('Clique aqui para conectar ao Mercado Pago', 'wc-multivendor-marketplace')
+                )
             )
-        )
-    );
-    $payment_keys = array_merge($payment_keys, $payment_mercado_pago_keys);
+        );
+        $payment_keys = array_merge($payment_keys, $payment_mercado_pago_keys);
+    }
     return $payment_keys;
 }, 50, 2);
 
@@ -151,7 +175,7 @@ class WCFMmp_Gateway_Mercado_Pago {
 
         // Obter o token OAuth do vendedor
         $this->vendor_id = $vendor_id;
-        $this->withdraw_amount = $withdraw_amount;
+        $this->withdraw _amount = $withdraw_amount;
         $this->currency = get_woocommerce_currency();
         $this->transaction_mode = $transaction_mode;
         $this->receiver_token = get_user_meta($this->vendor_id, 'payment[mercado_pago][token]', true);
