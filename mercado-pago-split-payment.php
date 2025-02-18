@@ -13,8 +13,6 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
-<?php
-
 // Constantes para evitar erros de digitação
 define('MERCADO_PAGO_CLIENT_ID_OPTION', 'mercado_pago_client_id');
 define('MERCADO_PAGO_CLIENT_SECRET_OPTION', 'mercado_pago_client_secret');
@@ -36,22 +34,16 @@ add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function 
         "withdrawal_{$gateway_slug}_client_id" => array(
             'label' => __('Client ID', 'wc-multivendor-marketplace'),
             'type' => 'text',
-            'class' => 'wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug . ' quebra_linha',
-            'label_class' => 'wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug . ' quebra_linha',
             'value' => get_option(MERCADO_PAGO_CLIENT_ID_OPTION, ''),
         ),
         "withdrawal_{$gateway_slug}_client_secret" => array(
             'label' => __('Client Secret', 'wc-multivendor-marketplace'),
             'type' => 'text',
-            'class' => 'wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug . ' quebra_linha',
-            'label_class' => 'wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug . ' quebra_linha',
             'value' => get_option(MERCADO_PAGO_CLIENT_SECRET_OPTION, ''),
         ),
         "withdrawal_{$gateway_slug}_redirect_uri" => array(
             'label' => __('Redirect URI', 'wc-multivendor-marketplace'),
             'type' => 'text',
-            'class' => 'wcfm_ele withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug . ' quebra_linha',
-            'label_class' => 'wcfm_title withdrawal_mode withdrawal_mode_live withdrawal_mode_' . $gateway_slug . ' quebra_linha',
             'value' => get_option(MERCADO_PAGO_REDIRECT_URI_OPTION, 'https://juntoaqui.com.br/gerenciar-loja/settings/'), // URL padrão
         ),
     );
@@ -153,121 +145,95 @@ add_action('wcfm_vendor_settings_save_billing', function ($vendor_id, $wcfm_vend
     }
 }, 50, 2);
 
-// Salvando o Token do Vendedor
-add_action('wcfm_vendor_settings_save_billing', function ($vendor_id, $wcfm_vendor_options) {
-    if (isset($wcfm_vendor_options['payment']['mercado_pago']['token'])) {
-        $vendor_data = get_user_meta($vendor_id, 'wcfmmp_profile_settings', true);
-        if (!is_array($vendor_data)) $vendor_data = array();
-        
-        // Salvar corretamente dentro da estrutura de pagamento do WCFM
-        $vendor_data['payment']['mercado_pago']['token'] = sanitize_text_field($wcfm_vendor_options['payment']['mercado_pago']['token']);
-        
-        update_user_meta($vendor_id, 'wcfmmp_profile_settings', $vendor_data);
-    }
-}, 50, 2);
+// Processamento de Pagamentos com Múltiplos Vendedores
+add_action('wcfm_process_multiple_vendors_payment', function ($order_id) {
+    $order = wc_get_order($order_id);
+    $items = $order->get_items();
+    $vendor_payments = [];
 
-// Classe para processar pagamentos de retiradas via Mercado Pago
-class WCFMmp_Gateway_Mercado_Pago {
-    public function process_payment($withdrawal_id, $vendor_id, $withdraw_amount, $withdraw_charges, $transaction_mode = 'auto') {
-        global $WCFMmp;
+    // Agrupar itens por vendedor
+    foreach ($items as $item) {
+        $product_id = $item->get_product_id();
+        $vendor_id = get_post_field('post_author', $product_id); // Obter o ID do vendedor
+        $total = $item->get_total();
 
-        // Obter as configurações do Mercado Pago (Marketplace)
-        $client_id = get_option(MERCADO_PAGO_CLIENT_ID_OPTION);
-        $client_secret = get_option(MERCADO_PAGO_CLIENT_SECRET_OPTION);
-        $access_token = get_option(MERCADO_PAGO_ACCESS_TOKEN_OPTION); // Use access token if available
-        $marketplace_email = get_option('mercado_pago_marketplace_email');
-
-        // Obter dados do vendedor
-        $this->vendor_id = $vendor_id;
-        $this->withdraw_amount = $withdraw_amount;
-        $this->currency = get_woocommerce_currency();
-        $this->transaction_mode = $transaction_mode;
-        $vendor_data = get_user_meta($vendor_id, 'wcfmmp_profile_settings', true);
-        $this->receiver_token = isset($vendor_data['payment']['mercado_pago']['token']) ?
-        esc_attr($vendor_data['payment']['mercado_pago']['token']) : '';
-        $vendor_user = get_userdata($vendor_id); // Get vendor user object
-        $vendor_email = $vendor_user->user_email; // Get vendor email
-
-        // Verificar se dados essenciais estão presentes
-        if (!$this->receiver_token || !$vendor_email || !$marketplace_email || !$access_token) {
-            $this->message[] = __('Dados insuficientes para processar o pagamento.', 'wc-multivendor-marketplace');
-            return;
+        if (!isset($vendor_payments[$vendor_id])) {
+            $vendor_payments[$vendor_id] = 0;
         }
+        $vendor_payments[$vendor_id] += $total; // Acumular o total para cada vendedor
+    }
 
-        // Definir os valores para divisão
-        $marketplace_fee = $withdraw_charges;
-        $vendor_amount = $this->withdraw_amount - $marketplace_fee;
+    // Processar pagamentos para cada vendedor
+    foreach ($vendor_payments as $vendor_id => $amount) {
+        $vendor_data = get_user_meta($vendor_id, 'wcfmmp_profile_settings', true);
+        $access_token = isset($vendor_data['payment']['mercado_pago']['token']) ? esc_attr($vendor_data['payment']['mercado_pago']['token']) : '';
 
-        // Chamada à API do Mercado Pago
-        $payment_data = [
-            'transaction_amount' => $this->withdraw_amount,
-            'description' => 'Pagamento de Retirada',
-            'payer' => [
-                'email' => $marketplace_email, // E-mail do marketplace (pagador)
-            ],
-            'split' => [
-                'receivers' => [
-                    [
-                        'email' => $marketplace_email,
-                        'amount' => $marketplace_fee,
-                    ],
-                    [
-                        'email' => $vendor_email, // Email do vendedor
-                        'amount' => $vendor_amount,
-                        'identification' => [
-                            'type' => 'token',
-                            'id' => $this->receiver_token, // Token OAuth do vendedor
+        if ($access_token) {
+            $payment_data = [
+                'transaction_amount' => $amount,
+                'description' => 'Pagamento de Venda',
+                'payer' => [
+                    'email' => get_option('mercado_pago_marketplace_email'), // E-mail do marketplace (pagador)
+                ],
+                'split' => [
+                    'receivers' => [
+                        [
+                            'email' => get_option('mercado_pago_marketplace_email'),
+                            'amount' => 0, // O marketplace não recebe nada neste caso
+                        ],
+                        [
+                            'email' => get_userdata($vendor_id)->user_email, // Email do vendedor
+                            'amount' => $amount,
+                            'identification' => [
+                                'type' => 'token',
+                                'id' => $access_token, // Token OAuth do vendedor
+                            ],
                         ],
                     ],
                 ],
-            ],
-        ];
+            ];
 
-        $response = $this->call_mercado_pago_api($payment_data, $access_token); // Pass marketplace access token
-
-        if (isset($response['status']) && $response['status'] == 'approved') {
-            $this->message[] = __('Pagamento processado com sucesso via Mercado Pago.', 'wc-multivendor-marketplace');
-            // Update withdrawal status in your system.
-        } else {
-            $error_message = isset($response['message']) ? $response['message'] : __('Erro ao processar pagamento via Mercado Pago.', 'wc-multivendor-marketplace');
-            $this->message[] = $error_message;
+            // Chamada à API do Mercado Pago
+            $response = call_mercado_pago_api($payment_data, $access_token);
+            if (isset($response['status']) && $response['status'] == 'approved') {
+                // Pagamento processado com sucesso
+                error_log("Pagamento de {$amount} processado com sucesso para o vendedor ID: {$vendor_id}");
+            } else {
+                // Erro ao processar pagamento
+                error_log("Erro ao processar pagamento para o vendedor ID: {$vendor_id}. Resposta: " . print_r($response, true));
+            }
         }
     }
+});
 
-    // Função para chamar a API do Mercado Pago
-    private function call_mercado_pago_api($payment_data, $access_token) {
-        $url = 'https://api.mercadopago.com/v1/payments';
+// Função para chamar a API do Mercado Pago
+function call_mercado_pago_api($payment_data, $access_token) {
+    $url = 'https://api.mercadopago.com/v1/payments';
 
-        $headers = [
-            'Accept: application/json',
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $access_token, // Use marketplace access token
-        ];
+    $headers = [
+        'Accept: application/json',
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $access_token, // Use marketplace access token
+    ];
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payment_data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payment_data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-        $response = curl_exec($ch);
+    $response = curl_exec($ch);
 
-        if (curl_errno($ch)) {
-            $this->message[] = __('Erro na requisição cURL: ' . curl_error($ch), 'wc-multivendor-marketplace');
-            curl_close($ch);
-            return null; // Return null on error
-        }
-
+    if (curl_errno($ch)) {
+        error_log('Erro na requisição cURL: ' . curl_error($ch));
         curl_close($ch);
-
-        $decoded_response = json_decode($response, true);
-
-        // Log the full response for debugging
-        error_log("Mercado Pago API Response: " . print_r($decoded_response, true)); // Log the response
-
-        return $decoded_response;
+        return null; // Return null on error
     }
+
+    curl_close($ch);
+
+    return json_decode($response, true);
 }
 
 ?>
