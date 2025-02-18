@@ -146,7 +146,8 @@ add_action('wcfm_vendor_settings_save_billing', function ($vendor_id, $wcfm_vend
 }, 50, 2);
 
 // Processamento de Pagamentos com Múltiplos Vendedores
-add_action('wcfm_process_multiple_vendors_payment', function ($order_id) {
+add_action('woocommerce_thankyou', 'process_multiple_vendors_payment', 10, 1);
+function process_multiple_vendors_payment($order_id) {
     $order = wc_get_order($order_id);
     $items = $order->get_items();
     $vendor_payments = [];
@@ -204,7 +205,7 @@ add_action('wcfm_process_multiple_vendors_payment', function ($order_id) {
             }
         }
     }
-});
+}
 
 // Função para chamar a API do Mercado Pago
 function call_mercado_pago_api($payment_data, $access_token) {
