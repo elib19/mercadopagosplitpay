@@ -17,7 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 define('MERCADO_PAGO_CLIENT_ID_OPTION', 'mercado_pago_client_id');
 define('MERCADO_PAGO_CLIENT_SECRET_OPTION', 'mercado_pago_client_secret');
 define('MERCADO_PAGO_REDIRECT_URI_OPTION', 'mercado_pago_redirect_uri');
-define('MERCADO_PAGO_ACCESS_TOKEN_OPTION', 'mercado_pago_access_token'); // Para o Marketplace
+define('MERCADO_PAGO_ACCESS_TOKEN_OPTION', 'mercado_pago_access_token');
+define('MERCADO_PAGO_MARKETPLACE_EMAIL_OPTION', 'mercado_pago_marketplace_email'); // E-mail do marketplace
 
 // Adicionar Gateway de Pagamento ao WCFM
 add_filter('wcfm_marketplace_withdrwal_payment_methods', function ($payment_methods) {
@@ -46,6 +47,11 @@ add_filter('wcfm_marketplace_settings_fields_withdrawal_payment_keys', function 
             'type' => 'text',
             'value' => get_option(MERCADO_PAGO_REDIRECT_URI_OPTION, 'https://juntoaqui.com.br/gerenciar-loja/settings/'), // URL padrão
         ),
+        "withdrawal_{$gateway_slug}_marketplace_email" => array(
+            'label' => __('Marketplace Email', 'wc-multivendor-marketplace'),
+            'type' => 'text',
+            'value' => get_option(MERCADO_PAGO_MARKETPLACE_EMAIL_OPTION, ''),
+        ),
     );
 
     return array_merge($payment_keys, $payment_mercado_pago_keys);
@@ -59,6 +65,7 @@ add_action('wcfm_marketplace_settings_save_withdrawal_payment_keys', function ($
         update_option(MERCADO_PAGO_CLIENT_ID_OPTION, sanitize_text_field($wcfm_withdrawal_options["withdrawal_{$gateway_slug}_client_id"]));
         update_option(MERCADO_PAGO_CLIENT_SECRET_OPTION, sanitize_text_field($wcfm_withdrawal_options["withdrawal_{$gateway_slug}_client_secret"]));
         update_option(MERCADO_PAGO_REDIRECT_URI_OPTION, sanitize_text_field($wcfm_withdrawal_options["withdrawal_{$gateway_slug}_redirect_uri"]));
+        update_option(MERCADO_PAGO_MARKETPLACE_EMAIL_OPTION, sanitize_text_field($wcfm_withdrawal_options["withdrawal_{$gateway_slug}_marketplace_email"]));
     }
 }, 50);
 
@@ -127,21 +134,22 @@ add_action('wcfm_vendor_settings_save_billing', function ($vendor_id, $wcfm_vend
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
 
         $response = curl_exec($ch);
-        if (curl_errno($ch)) {
-            error_log("Erro cURL na troca do token: " . curl_error($ch));
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($http_code != 200) {
+            error_log("Erro HTTP: " . $http_code . " - Resposta: " . $response);
+        } else {
+            $decoded_response = json_decode($response, true);
+            if (isset($decoded_response['access_token'])) {
+                $access_token = $decoded_response['access_token'];
+                $vendor_data = get_user_meta($vendor_id, 'wcfmmp_profile_settings', true);
+                if (!is_array($vendor_data)) $vendor_data = array();
+                $vendor_data['payment']['mercado_pago']['token'] = sanitize_text_field($access_token);
+                update_user_meta($vendor_id, 'wcfmmp_profile_settings', $vendor_data);
+            } else {
+                error_log("Erro na troca do código pelo token: " . print_r($decoded_response, true));
+            }
         }
         curl_close($ch);
-
-        $decoded_response = json_decode($response, true);
-        if (isset($decoded_response['access_token'])) {
-            $access_token = $decoded_response['access_token'];
-            $vendor_data = get_user_meta($vendor_id, 'wcfmmp_profile_settings', true);
-            if (!is_array($vendor_data)) $vendor_data = array();
-            $vendor_data['payment']['mercado_pago']['token'] = sanitize_text_field($access_token);
-            update_user_meta($vendor_id, 'wcfmmp_profile_settings', $vendor_data);
-        } else {
-            error_log("Erro na troca do código pelo token: " . print_r($decoded_response, true));
-        }
     }
 }, 50, 2);
 
@@ -174,21 +182,19 @@ function process_multiple_vendors_payment($order_id) {
                 'transaction_amount' => $amount,
                 'description' => 'Pagamento de Venda',
                 'payer' => [
-                    'email' => get_option('mercado_pago_marketplace_email'), // E-mail do marketplace (pagador)
+                    'email' => get_option(MERCADO_PAGO_MARKETPLACE_EMAIL_OPTION), // E-mail do marketplace (pagador)
                 ],
                 'split' => [
-                    'receivers' => [
+                    'recipients' => [
                         [
-                            'email' => get_option('mercado_pago_marketplace_email'),
-                            'amount' => 0, // O marketplace não recebe nada neste caso
+                            'type' => 'MERCHANT',
+                            'merchant_id' => get_userdata($vendor_id)->user_email, // Email do vendedor
+                            'percentage' => 100, // 100% para o vendedor
                         ],
                         [
-                            'email' => get_userdata($vendor_id)->user_email, // Email do vendedor
-                            'amount' => $amount,
-                            'identification' => [
-                                'type' => 'token',
-                                'id' => $access_token, // Token OAuth do vendedor
-                            ],
+                            'type' => 'MERCHANT',
+                            'merchant_id' => get_option(MERCADO_PAGO_MARKETPLACE_EMAIL_OPTION), // Seu ID de merchant do Mercado Pago
+                            'percentage' => 0,  // 0% para o marketplace
                         ],
                     ],
                 ],
@@ -196,6 +202,11 @@ function process_multiple_vendors_payment($order_id) {
 
             // Chamada à API do Mercado Pago
             $response = call_mercado_pago_api($payment_data, $access_token);
+            if ($response === null) {
+                error_log("Erro na chamada da API do Mercado Pago. Retorno nulo.");
+                continue; // Pular para o próximo vendedor
+            }
+
             if (isset($response['status']) && $response['status'] == 'approved') {
                 // Pagamento processado com sucesso
                 error_log("Pagamento de {$amount} processado com sucesso para o vendedor ID: {$vendor_id}");
@@ -214,7 +225,7 @@ function call_mercado_pago_api($payment_data, $access_token) {
     $headers = [
         'Accept: application/json',
         'Content-Type: application/json',
-        'Authorization: Bearer ' . $access_token, // Use marketplace access token
+        'Authorization: Bearer ' . $access_token,
     ];
 
     $ch = curl_init();
