@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Mercado Pago Split (WooCommerce + WCFM)
- * Plugin URI: https://juntoaqui.com.br
+ * Plugin URI: https://github.com/elib19/mercadopagosplitpay/blob/main/mercado-pago-split-payment.php
  * Description: Configure payment options and accept payments with cards, ticket, and Mercado Pago account.
  * Version: 1.2.0
  * Author: Eli Silva
